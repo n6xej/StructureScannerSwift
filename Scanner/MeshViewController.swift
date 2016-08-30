@@ -27,7 +27,13 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
     var colorEnabled: Bool = false
     
     var highmesh: STMesh? = nil
-    
+		{
+		didSet {
+			NSLog("mesh num -> %d", highmesh!.numberOfMeshes())
+			showMeshViewerMessage(String.init(format: "Meshes: %d", highmesh!.numberOfMeshes()))
+		}
+	}
+
     private var _mesh: STMesh? = nil
     var mesh: STMesh? {
         get {
@@ -381,14 +387,16 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
 		
 		mailViewController?.setMessageBody(messageBody, isHTML: false)
 
-		if let meshToSend = highmesh {
-			let zipfile = FileMgr.sharedInstance.saveMesh(zipFilename, data: meshToSend)
-			
-			if zipfile != nil {
-				mailViewController?.addAttachmentData(zipfile!, mimeType: "application/zip", fileName: zipFilename)
-			}
-		}
-        else if let meshToSend = mesh {
+		// for testing of highmesh
+//		if let meshToSend = highmesh {
+//			let zipfile = FileMgr.sharedInstance.saveMesh(zipFilename, data: meshToSend)
+//			
+//			if zipfile != nil {
+//				mailViewController?.addAttachmentData(zipfile!, mimeType: "application/zip", fileName: zipFilename)
+//			}
+//		}
+//        else if let meshToSend = mesh {
+		if let meshToSend = mesh {
             let zipfile = FileMgr.sharedInstance.saveMesh(zipFilename, data: meshToSend)
             
             if zipfile != nil {
