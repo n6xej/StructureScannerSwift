@@ -152,6 +152,7 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
 	@IBAction func dismissView(sender: AnyObject) {
 
 		displayControl.selectedSegmentIndex = 1
+		renderer.setRenderingMode(.LightedGray)
 		
         if delegate?.meshViewWillDismiss != nil {
             delegate?.meshViewWillDismiss()
