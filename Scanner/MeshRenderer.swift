@@ -198,7 +198,8 @@ class MeshRenderer : NSObject {
         d!.hasTexture = (mesh.meshYCbCrTexture() != nil)
         
         if d!.hasTexture {
-            uploadTexture(mesh.meshYCbCrTexture as! CVPixelBufferRef)
+			let pixelBuffer = Unmanaged<CVImageBuffer>.fromOpaque(mesh.meshYCbCrTexture().toOpaque()).takeRetainedValue()
+            uploadTexture(pixelBuffer)
         }
 		
         for meshIndex in 0..<numUploads {

@@ -25,16 +25,8 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
 	// force the view to redraw.
     var needsDisplay: Bool = false
     var colorEnabled: Bool = false
-    
-    var highmesh: STMesh? = nil
-		{
-		didSet {
-			NSLog("mesh num -> %d", highmesh!.numberOfMeshes())
-			showMeshViewerMessage(String.init(format: "Meshes: %d", highmesh!.numberOfMeshes()))
-		}
-	}
-
-    private var _mesh: STMesh? = nil
+	
+	private var _mesh: STMesh? = nil
     var mesh: STMesh? {
         get {
             return _mesh
