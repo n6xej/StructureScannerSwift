@@ -407,7 +407,6 @@ class MeshRenderer : NSObject {
             glDrawElements( GLenum(GL_TRIANGLES), GLsizei(d!.numTriangleIndices[meshIndex]), GLenum(GL_UNSIGNED_SHORT), nil)
             disableVertexTexcoordBuffer(meshIndex)
             disableVertexBuffer(meshIndex)
- 
         }
         
         glBindBuffer( GLenum(GL_ELEMENT_ARRAY_BUFFER), 0)
@@ -459,7 +458,6 @@ class MeshRenderer : NSObject {
 			
             d!.yCbCrTextureShader!.enable()
             d!.yCbCrTextureShader!.prepareRendering(projectionMatrix, modelView: modelViewMatrix, textureUnit: GLint(d!.textureUnit))
-
         }
         
         // Keep previous GL_DEPTH_TEST state

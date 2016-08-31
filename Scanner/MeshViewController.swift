@@ -380,15 +380,6 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
 		
 		mailViewController?.setMessageBody(messageBody, isHTML: false)
 
-		// for testing of highmesh
-//		if let meshToSend = highmesh {
-//			let zipfile = FileMgr.sharedInstance.saveMesh(zipFilename, data: meshToSend)
-//			
-//			if zipfile != nil {
-//				mailViewController?.addAttachmentData(zipfile!, mimeType: "application/zip", fileName: zipFilename)
-//			}
-//		}
-//        else if let meshToSend = mesh {
 		if let meshToSend = mesh {
             let zipfile = FileMgr.sharedInstance.saveMesh(zipFilename, data: meshToSend)
             
@@ -396,7 +387,6 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
                 mailViewController?.addAttachmentData(zipfile!, mimeType: "application/zip", fileName: zipFilename)
             }
         }
-
 		else {
 
 			mailViewController = nil
