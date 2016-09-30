@@ -108,6 +108,11 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
             displayControl.removeSegmentAtIndex(2, animated: false)
         }
     }
+    
+    // Make sure the status bar is disabled (iOS 7+)
+    override public func prefersStatusBarHidden() -> Bool {
+        return true
+    }
 
     override public func didReceiveMemoryWarning () {
         
