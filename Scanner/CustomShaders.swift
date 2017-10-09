@@ -8,13 +8,13 @@
 //  Ported by Christopher Worley on 8/20/16.
 //
 
-public class CustomShader : NSObject {
+open class CustomShader : NSObject {
 	
     enum Attrib : GLuint {
-        case Vertex = 0
-        case Normal
-        case Color
-        case TextCoord
+        case vertex = 0
+        case normal
+        case color
+        case textCoord
     }
 
 	var glProgram: GLuint = 0
@@ -45,7 +45,7 @@ class LightedGrayShader: CustomShader {
     var projectionLocation: GLint = 0
     var modelviewLocation: GLint = 0
     
-    func prepareRendering(projection: UnsafePointer<GLfloat>, modelView: UnsafePointer<GLfloat>)
+    func prepareRendering(_ projection: UnsafePointer<GLfloat>, modelView: UnsafePointer<GLfloat>)
     {
         glUniformMatrix4fv(modelviewLocation, 1, GLboolean(GL_FALSE), modelView)
         glUniformMatrix4fv(projectionLocation, 1, GLboolean(GL_FALSE), projection)
@@ -57,7 +57,7 @@ class LightedGrayShader: CustomShader {
     {
         let NUM_ATTRIBS: Int = 2
 
-        let attributeIds: [GLuint] = [Attrib.Vertex.rawValue, Attrib.Normal.rawValue]
+        let attributeIds: [GLuint] = [Attrib.vertex.rawValue, Attrib.normal.rawValue]
         let attributeNames: [String] = ["a_position", "a_normal"]
 		
         glProgram = loadOpenGLProgramFromString(vertexShaderSource(), fragment_shader_src: fragmentShaderSource(), num_attributes: NUM_ATTRIBS, attribute_ids: attributeIds, attribute_names: attributeNames)
@@ -93,7 +93,7 @@ class LightedGrayShader: CustomShader {
 			"v_luminance = 0.5*abs(vec.z) + 0.5; \n" +
 		"} \n"
 		
-		return source
+		return source as NSString
 
 	}
 	
@@ -109,7 +109,7 @@ class LightedGrayShader: CustomShader {
 				"gl_FragColor = vec4(v_luminance, v_luminance, v_luminance, 1.0); \n" +
 		"} \n"
 		
-		return source
+		return source as NSString
 		
 	}
 }
@@ -123,7 +123,7 @@ class PerVertexColorShader: CustomShader {
     {
         let NUM_ATTRIBS: Int = 3
 		
-        let attributeIds: [GLuint] = [Attrib.Vertex.rawValue, Attrib.Normal.rawValue, Attrib.Color.rawValue]
+        let attributeIds: [GLuint] = [Attrib.vertex.rawValue, Attrib.normal.rawValue, Attrib.color.rawValue]
         let attributeNames: [String] = ["a_position", "a_normal", "a_color"]
 		
         glProgram = loadOpenGLProgramFromString(vertexShaderSource(), fragment_shader_src: fragmentShaderSource(), num_attributes: NUM_ATTRIBS, attribute_ids: attributeIds, attribute_names: attributeNames)
@@ -135,7 +135,7 @@ class PerVertexColorShader: CustomShader {
         loaded = true
     }
 	
-    func prepareRendering(projection: UnsafePointer<GLfloat>, modelView: UnsafePointer<GLfloat>)
+    func prepareRendering(_ projection: UnsafePointer<GLfloat>, modelView: UnsafePointer<GLfloat>)
     {
         glUniformMatrix4fv( GLint(modelviewLocation), 1, GLboolean(GL_FALSE), modelView)
         glUniformMatrix4fv( GLint(projectionLocation), 1, GLboolean(GL_FALSE), projection)
@@ -159,7 +159,7 @@ class PerVertexColorShader: CustomShader {
 				"v_color = a_color; \n" +
 		"} \n"
 		
-		return source
+		return source as NSString
 	}
 		
 	override func fragmentShaderSource() -> NSString {
@@ -173,7 +173,7 @@ class PerVertexColorShader: CustomShader {
 				"gl_FragColor = vec4(v_color, 1.0); \n" +
 		"} \n"
 		
-		return source
+		return source as NSString
 	}
 }
 
@@ -186,7 +186,7 @@ class XrayShader : CustomShader {
     {
         let NUM_ATTRIBS: Int = 2
 		
-        let attributeIds: [GLuint] = [Attrib.Vertex.rawValue, Attrib.Normal.rawValue]
+        let attributeIds: [GLuint] = [Attrib.vertex.rawValue, Attrib.normal.rawValue]
         let attributeNames: [String] = ["a_position", "a_normal"]
 		
         glProgram = loadOpenGLProgramFromString(vertexShaderSource(), fragment_shader_src: fragmentShaderSource(), num_attributes: NUM_ATTRIBS, attribute_ids: attributeIds, attribute_names: attributeNames)
@@ -198,7 +198,7 @@ class XrayShader : CustomShader {
         loaded = true
     }
 	
-    func prepareRendering(projection: UnsafePointer<GLfloat>, modelView: UnsafePointer<GLfloat>)
+    func prepareRendering(_ projection: UnsafePointer<GLfloat>, modelView: UnsafePointer<GLfloat>)
     {
         glUniformMatrix4fv( GLint(modelviewLocation), 1, GLboolean(GL_FALSE), modelView)
         glUniformMatrix4fv( GLint(projectionLocation), 1, GLboolean(GL_FALSE), projection)
@@ -226,7 +226,7 @@ class XrayShader : CustomShader {
 				"v_luminance = 1.0 - abs(vec.z); \n" +
 		"} \n"
 		
-		return source
+		return source as NSString
 	}
 	
 	override func fragmentShaderSource() -> NSString {
@@ -241,7 +241,7 @@ class XrayShader : CustomShader {
 				"gl_FragColor = vec4(v_luminance, v_luminance, v_luminance, 1.0); \n" +
 		"} \n"
 		
-		return source
+		return source as NSString
 	}
 }
 
@@ -256,7 +256,7 @@ class YCbCrTextureShader : CustomShader {
     {
 		let NUM_ATTRIBS: Int = 2
 		
-        let attributeIds: [GLuint] = [Attrib.Vertex.rawValue, Attrib.TextCoord.rawValue]
+        let attributeIds: [GLuint] = [Attrib.vertex.rawValue, Attrib.textCoord.rawValue]
         let attributeNames: [String] = ["a_position", "a_texCoord"]
 		
         glProgram = loadOpenGLProgramFromString(vertexShaderSource(), fragment_shader_src: fragmentShaderSource(), num_attributes: NUM_ATTRIBS, attribute_ids: attributeIds, attribute_names: attributeNames)
@@ -269,7 +269,7 @@ class YCbCrTextureShader : CustomShader {
         loaded = true
     }
 	
-    func prepareRendering(projection: UnsafePointer<GLfloat>, modelView: UnsafePointer<GLfloat>, textureUnit: GLint)
+    func prepareRendering(_ projection: UnsafePointer<GLfloat>, modelView: UnsafePointer<GLfloat>, textureUnit: GLint)
     {
         glUniformMatrix4fv(GLint(modelviewLocation), 1, GLboolean(GL_FALSE), modelView)
         glUniformMatrix4fv(GLint(projectionLocation), 1, GLboolean(GL_FALSE), projection)
@@ -295,7 +295,7 @@ class YCbCrTextureShader : CustomShader {
 		
 		"} \n"
 		
-		return source
+		return source as NSString
 	}
 	
 	override func fragmentShaderSource() -> NSString {
@@ -322,13 +322,13 @@ class YCbCrTextureShader : CustomShader {
 				"gl_FragColor = vec4(rgb, 1.0); \n" +
 		"} \n"
 		
-		return source
+		return source as NSString
 	}
 }
 
 // Helper functions.
 
-func loadOpenGLShaderFromString(type: GLenum, shaderSrc: NSString) -> GLuint {
+func loadOpenGLShaderFromString(_ type: GLenum, shaderSrc: NSString) -> GLuint {
  
     var shader: GLuint
     var compiled: GLint = GL_FALSE
@@ -340,7 +340,7 @@ func loadOpenGLShaderFromString(type: GLenum, shaderSrc: NSString) -> GLuint {
         return 0
     }
 	
-	var castSrc = UnsafePointer<GLchar>(shaderSrc.UTF8String)
+	var castSrc = UnsafePointer<GLchar>(shaderSrc.utf8String)
 
     // Load the shader source
     glShaderSource(shader, 1, &castSrc, nil)
@@ -359,7 +359,7 @@ func loadOpenGLShaderFromString(type: GLenum, shaderSrc: NSString) -> GLuint {
 		
         if infoLen > 1 {
 			
-			var infoLog: [GLchar] = [GLchar](count: Int(infoLen), repeatedValue: 0)
+			var infoLog: [GLchar] = [GLchar](repeating: 0, count: Int(infoLen))
 			glGetShaderInfoLog(shader, infoLen, nil, &infoLog)
             NSLog("Error compiling shader: \(infoLog)\n")
             NSLog("Code: %@\n", shaderSrc)
@@ -372,7 +372,7 @@ func loadOpenGLShaderFromString(type: GLenum, shaderSrc: NSString) -> GLuint {
     return shader
 }
 
-func loadOpenGLProgramFromString(vertex_shader_src : NSString, fragment_shader_src : NSString, num_attributes : Int, attribute_ids: [GLuint], attribute_names : [String]) -> GLuint {
+func loadOpenGLProgramFromString(_ vertex_shader_src : NSString, fragment_shader_src : NSString, num_attributes : Int, attribute_ids: [GLuint], attribute_names : [String]) -> GLuint {
 
     var vertex_shader: GLuint!
     var fragment_shader: GLuint!
@@ -424,7 +424,7 @@ func loadOpenGLProgramFromString(vertex_shader_src : NSString, fragment_shader_s
 		
         if infoLen > 1 {
 			
-			var infoLog: [GLchar] = [GLchar](count: Int(infoLen), repeatedValue: 0)
+			var infoLog: [GLchar] = [GLchar](repeating: 0, count: Int(infoLen))
             glGetProgramInfoLog(program_object, infoLen, nil, &infoLog)
             NSLog("Error linking program: \(infoLog)\n")
         }

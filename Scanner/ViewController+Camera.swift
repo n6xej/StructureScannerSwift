@@ -13,26 +13,26 @@ extension ViewController  {
 	
 	func queryCameraAuthorizationStatusAndNotifyUserIfNotGranted() -> Bool {
 		
-		let numCameras = AVCaptureDevice.devicesWithMediaType(AVMediaTypeVideo)!
+		let numCameras = AVCaptureDevice.devices(withMediaType: AVMediaTypeVideo)!
 
 		if 0 == numCameras.count {
 			return false
 		}
 		// This can happen even on devices that include a camera, when camera access is restricted globally.
 
-		let authStatus = AVCaptureDevice.authorizationStatusForMediaType(AVMediaTypeVideo)
+		let authStatus = AVCaptureDevice.authorizationStatus(forMediaType: AVMediaTypeVideo)
 
-		if authStatus != .Authorized {
+		if authStatus != .authorized {
 			
 			NSLog("Not authorized to use the camera!")
 
-			AVCaptureDevice.requestAccessForMediaType(AVMediaTypeVideo, completionHandler: { granted in
+			AVCaptureDevice.requestAccess(forMediaType: AVMediaTypeVideo, completionHandler: { granted in
 				// This block fires on a separate thread, so we need to ensure any actions here
 				// are sent to the right place.
 				// If the request is granted, let's try again to start an AVFoundation session.
 				// Otherwise, alert the user that things won't go well.
 				if granted {
-					dispatch_async(dispatch_get_main_queue()) {
+					DispatchQueue.main.async() {
 						self.startColorCamera()
 						self._appStatus.colorCameraIsAuthorized = true
 						self.updateAppStatusMessage()
@@ -45,7 +45,7 @@ extension ViewController  {
 		return true
 	}
     
-	func selectCaptureFormat(demandFormat: NSDictionary) {
+	func selectCaptureFormat(_ demandFormat: NSDictionary) {
 		
 		var selectedFormat: AVCaptureDeviceFormat? = nil
 		
@@ -55,20 +55,20 @@ extension ViewController  {
 		for format in videoDevice!.formats {
 
 			let formatDesc = (format as! AVCaptureDeviceFormat).formatDescription
-			let fourCharCode = CMFormatDescriptionGetMediaSubType(formatDesc)
+			let fourCharCode = CMFormatDescriptionGetMediaSubType(formatDesc!)
 			
 			let videoFormatDesc = formatDesc
-			let formatDims = CMVideoFormatDescriptionGetDimensions(videoFormatDesc)
+			let formatDims = CMVideoFormatDescriptionGetDimensions(videoFormatDesc!)
 			
 
 			let widthNeeded = demandFormat["width"] as! NSNumber
 			let heightNeeded = demandFormat["height"] as! NSNumber
 			
-			if widthNeeded.intValue != formatDims.width {
+			if widthNeeded.intValue != Int(formatDims.width) {
 				continue
 			}
 			
-			if heightNeeded.intValue != formatDims.height {
+			if heightNeeded.intValue != Int(formatDims.height) {
 				continue
 			}
 			// we only support full range YCbCr for now
@@ -82,7 +82,7 @@ extension ViewController  {
 		videoDevice!.activeFormat = selectedFormat!
 	}
 
-    func setLensPositionWithValue(value: Float, lockVideoDevice: Bool) {
+    func setLensPositionWithValue(_ value: Float, lockVideoDevice: Bool) {
 		
 		// Abort if there's no videoDevice yet.
         if videoDevice == nil {
@@ -112,7 +112,7 @@ extension ViewController  {
 		if _sensorController != nil {
 			let isConnected = _sensorController.isConnected()
 			if isConnected {
-				ret = 0 >= _sensorController.getFirmwareRevision().compare("2.0", options: .NumericSearch, range: nil, locale: nil).rawValue
+				ret = 0 >= _sensorController.getFirmwareRevision().compare("2.0", options: .numeric, range: nil, locale: nil).rawValue
 			}
 		}
 		
@@ -126,7 +126,7 @@ extension ViewController  {
 	// However, older devices may only support this format at a lower framerate.
 	// In your Structure Sensor is on firmware 2.0+, it supports depth capture at FPS of 24.
 	
-	let testVideoDevice = AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo)
+	let testVideoDevice = AVCaptureDevice.defaultDevice(withMediaType: AVMediaTypeVideo)
 		if testVideoDevice == nil {
             
             assertionFailure()
@@ -137,20 +137,20 @@ extension ViewController  {
 		let base420f: UInt32 = 875704422  // decimal val of '420f'
 		let fourCharCodeStr = base420f as FourCharCode
 		
-		for format in testVideoDevice.formats {
+		for format in (testVideoDevice?.formats)! {
 	
 			let firstFrameRateRange = (format as! AVCaptureDeviceFormat).videoSupportedFrameRateRanges[0]
 			
-			let formatMinFps = firstFrameRateRange.minFrameRate
-			let formatMaxFps = firstFrameRateRange.maxFrameRate
+			let formatMinFps = (firstFrameRateRange as AnyObject).minFrameRate
+			let formatMaxFps = (firstFrameRateRange as AnyObject).maxFrameRate
 
-			if ( formatMaxFps < 15 // Max framerate too low.
-				|| formatMinFps > 30 // Min framerate too high.
-				|| (formatMaxFps == 24 && !structureSensorSupports24FPS && formatMinFps > 15)) { // We can neither do the 24 FPS max framerate, nor fall back to 15.
+			if (Double(formatMaxFps!) < 15.0 // Max framerate too low.
+				|| Double(formatMinFps!) > 30.0 // Min framerate too high.
+				|| (Double(formatMaxFps!) == 24.0 && !structureSensorSupports24FPS && Double(formatMinFps!) > 15.0)) { // We can neither do the 24 FPS max framerate, nor fall back to 15.
 				continue
 			}
 
-			let formatDesc: CMFormatDescriptionRef
+			let formatDesc: CMFormatDescription
 		
 			formatDesc = (format as! AVCaptureDeviceFormat).formatDescription
 
@@ -208,7 +208,7 @@ extension ViewController  {
 		avCaptureSession!.sessionPreset = AVCaptureSessionPresetInputPriority
 
 		// Create a video device and input from that Device.  Add the input to the capture session.
-		videoDevice = AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo)
+		videoDevice = AVCaptureDevice.defaultDevice(withMediaType: AVMediaTypeVideo)
         
 		if videoDevice == nil {
 			assertionFailure()
@@ -241,13 +241,13 @@ extension ViewController  {
 			self.selectCaptureFormat(["width": imageWidth, "height": imageHeight])
 			
 			// Allow exposure to initially change
-			if videoDevice!.isExposureModeSupported(.ContinuousAutoExposure) {
-				videoDevice!.exposureMode = .ContinuousAutoExposure
+			if videoDevice!.isExposureModeSupported(.continuousAutoExposure) {
+				videoDevice!.exposureMode = .continuousAutoExposure
 			}
 
 			// Allow white balance to initially change
-			if videoDevice!.isWhiteBalanceModeSupported(.ContinuousAutoWhiteBalance) {
-				videoDevice!.whiteBalanceMode = .ContinuousAutoWhiteBalance
+			if videoDevice!.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
+				videoDevice!.whiteBalanceMode = .continuousAutoWhiteBalance
 			}
 			
 			// Apply to specified focus position.
@@ -274,7 +274,7 @@ extension ViewController  {
 		//  Create the video data output.
 		
 		let dataOutput = AVCaptureVideoDataOutput()
-		dataOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey : NSNumber(unsignedInt: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)]
+		dataOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as AnyHashable : NSNumber(value: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange)]
 		
 		// We don't want to process late frames.
 		
@@ -287,7 +287,7 @@ extension ViewController  {
 		
 		// Dispatch the capture callbacks on the main thread, where OpenGL calls can be made synchronously.
 		
-		dataOutput.setSampleBufferDelegate(self, queue: dispatch_get_main_queue())
+		dataOutput.setSampleBufferDelegate(self, queue: DispatchQueue.main)
 		
 		
 		// Force the framerate to 30 FPS, to be in sync with Structure Sensor.
@@ -329,7 +329,7 @@ extension ViewController  {
 //		}
 
 		if avCaptureSession != nil {
-			if avCaptureSession!.running {
+			if avCaptureSession!.isRunning {
 				return
 			}
 		}
@@ -346,7 +346,7 @@ extension ViewController  {
 	func stopColorCamera() {
 		
 		if avCaptureSession != nil {
-			if avCaptureSession!.running {
+			if avCaptureSession!.isRunning {
 				
 				// Stop the session
 				avCaptureSession!.stopRunning()
@@ -363,13 +363,13 @@ extension ViewController  {
 			try videoDevice?.lockForConfiguration()
 			
 			// Auto-exposure
-			if videoDevice != nil && (videoDevice?.isExposureModeSupported(.ContinuousAutoExposure))! {
-				videoDevice?.exposureMode = .ContinuousAutoExposure
+			if videoDevice != nil && (videoDevice?.isExposureModeSupported(.continuousAutoExposure))! {
+				videoDevice?.exposureMode = .continuousAutoExposure
 			}
 			
 			// Auto-white balance.
-			if ((videoDevice?.isWhiteBalanceModeSupported(.ContinuousAutoWhiteBalance)) != nil) {
-				videoDevice?.whiteBalanceMode = .ContinuousAutoWhiteBalance
+			if ((videoDevice?.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance)) != nil) {
+				videoDevice?.whiteBalanceMode = .continuousAutoWhiteBalance
 			}
 			
 			videoDevice?.unlockForConfiguration()
@@ -385,13 +385,13 @@ extension ViewController  {
 			try videoDevice?.lockForConfiguration()
 			
 			// Exposure locked to its current value.
-			if ((videoDevice?.isExposureModeSupported(.Locked)) != nil) {
-				videoDevice?.exposureMode = .Locked
+			if ((videoDevice?.isExposureModeSupported(.locked)) != nil) {
+				videoDevice?.exposureMode = .locked
 			}
 			
 			// White balance locked to its current value.
-			if ((videoDevice?.isWhiteBalanceModeSupported(.Locked)) != nil) {
-				videoDevice?.whiteBalanceMode = .Locked
+			if ((videoDevice?.isWhiteBalanceModeSupported(.locked)) != nil) {
+				videoDevice?.whiteBalanceMode = .locked
 			}
 			
 			videoDevice?.unlockForConfiguration()
@@ -401,7 +401,7 @@ extension ViewController  {
 		}
 	}
     
-    func captureOutput(captureOutput: AVCaptureOutput!, didOutputSampleBuffer sampleBuffer: CMSampleBuffer!, fromConnection connection: AVCaptureConnection!) {
+    @objc(captureOutput:didOutputSampleBuffer:fromConnection:) func captureOutput(_ captureOutput: AVCaptureOutput!, didOutputSampleBuffer sampleBuffer: CMSampleBuffer!, from connection: AVCaptureConnection!) {
 
 		// Pass color buffers directly to the driver, which will then produce synchronized depth/color pairs.
 

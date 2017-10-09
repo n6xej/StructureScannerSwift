@@ -15,7 +15,7 @@
 
 class EAGLView: UIView {
 	
-	private var _context: EAGLContext? = nil
+	fileprivate var _context: EAGLContext? = nil
 	var context: EAGLContext? {
 		get {
 			return _context
@@ -27,7 +27,7 @@ class EAGLView: UIView {
 				
 				_context = newValue
 				
-				EAGLContext.setCurrentContext(nil)
+				EAGLContext.setCurrent(nil)
 			}
 		}
 	}
@@ -43,7 +43,7 @@ class EAGLView: UIView {
 	
 	@inline(__always) func eaglLayer() -> CAEAGLLayer { return self.layer as! CAEAGLLayer }
 	
-	override  class func layerClass() -> AnyClass {
+    override class var layerClass: AnyClass {
 		return CAEAGLLayer.self
 	}
 
@@ -53,7 +53,7 @@ class EAGLView: UIView {
 		
 		let eagllayer = eaglLayer()
 		
-		eagllayer.opaque = true
+		eagllayer.isOpaque = true
 		eagllayer.drawableProperties = [kEAGLDrawablePropertyColorFormat : kEAGLColorFormatRGBA8, kEAGLDrawablePropertyRetainedBacking : false]
 		
 		self.contentScaleFactor = 1.0
@@ -67,7 +67,7 @@ class EAGLView: UIView {
 		
 		if context != nil && defaultFramebuffer == 0 {
 
-			EAGLContext.setCurrentContext(context)
+			EAGLContext.setCurrent(context)
 			
 			// Create default framebuffer object.
 			glGenFramebuffers(1, &defaultFramebuffer)
@@ -77,7 +77,7 @@ class EAGLView: UIView {
 			glGenRenderbuffers(1, &colorRenderbuffer)
 			glBindRenderbuffer( GLenum(GL_RENDERBUFFER), colorRenderbuffer)
 			
-			context!.renderbufferStorage( GLintptr(GL_RENDERBUFFER), fromDrawable: eaglLayer())
+			context!.renderbufferStorage( GLintptr(GL_RENDERBUFFER), from: eaglLayer())
 			glGetRenderbufferParameteriv( GLenum(GL_RENDERBUFFER), GLenum(GL_RENDERBUFFER_WIDTH), &framebufferWidth)
 			glGetRenderbufferParameteriv( GLenum(GL_RENDERBUFFER), GLenum(GL_RENDERBUFFER_HEIGHT), &framebufferHeight)
 			
@@ -100,7 +100,7 @@ class EAGLView: UIView {
 		
 		if context != nil {
             
-			EAGLContext.setCurrentContext(context)
+			EAGLContext.setCurrent(context)
 			
 			if defaultFramebuffer != 0 {
 				
@@ -126,7 +126,7 @@ class EAGLView: UIView {
 		
         if context != nil {
 			
-            EAGLContext.setCurrentContext(context)
+            EAGLContext.setCurrent(context)
 			
             if defaultFramebuffer == 0 {
                 self.createFramebuffer()
@@ -143,9 +143,9 @@ class EAGLView: UIView {
         var success = false
         
         // iOS may crash if presentRenderbuffer is called when the application is in background.
-        if context != nil && UIApplication.sharedApplication().applicationState != .Background {
+        if context != nil && UIApplication.shared.applicationState != .background {
             
-            EAGLContext.setCurrentContext(context)
+            EAGLContext.setCurrent(context)
             
             glBindRenderbuffer(GLenum(GL_RENDERBUFFER), colorRenderbuffer)
             

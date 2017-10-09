@@ -15,10 +15,10 @@ protocol MeshViewDelegate: class {
     
     func meshViewWillDismiss()
     func meshViewDidDismiss()
-    func meshViewDidRequestColorizing(mesh: STMesh,  previewCompletionHandler: () -> Void, enhancedCompletionHandler: () -> Void) -> Bool
+    func meshViewDidRequestColorizing(_ mesh: STMesh,  previewCompletionHandler: @escaping () -> Void, enhancedCompletionHandler: @escaping () -> Void) -> Bool
 }
 
-public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, MFMailComposeViewControllerDelegate {
+open class MeshViewController: UIViewController, UIGestureRecognizerDelegate, MFMailComposeViewControllerDelegate {
 	
     weak var delegate : MeshViewDelegate?
 
@@ -26,7 +26,7 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
     var needsDisplay: Bool = false
     var colorEnabled: Bool = false
 	
-	private var _mesh: STMesh? = nil
+	fileprivate var _mesh: STMesh? = nil
     var mesh: STMesh? {
         get {
             return _mesh
@@ -64,7 +64,7 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
     var displayLink: CADisplayLink?
     var renderer: MeshRenderer!
     var viewpointController: ViewpointController!
-    var viewport = [GLfloat](count: 4, repeatedValue: 0)
+    var viewport = [GLfloat](repeating: 0, count: 4)
     var modelViewMatrixBeforeUserInteractions: GLKMatrix4?
     var projectionMatrixBeforeUserInteractions: GLKMatrix4?
 	
@@ -75,7 +75,7 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
 
     }
 
-    override public func viewDidLoad() {
+    override open func viewDidLoad() {
 		
         super.viewDidLoad()
 
@@ -83,15 +83,15 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
         
 		viewpointController = ViewpointController.init(screenSizeX: Float(self.view.frame.size.width), screenSizeY: Float(self.view.frame.size.height))
 		
-        let font = UIFont.boldSystemFontOfSize(14)
-        let attributes: [NSObject : AnyObject] = [NSFontAttributeName : font]
+        let font = UIFont.boldSystemFont(ofSize: 14)
+        let attributes: [AnyHashable: Any] = [NSFontAttributeName : font]
         
-        displayControl.setTitleTextAttributes(attributes, forState: .Normal)
+        displayControl.setTitleTextAttributes(attributes, for: UIControlState())
 		
-		renderer.setRenderingMode(.LightedGray)
+		renderer.setRenderingMode(.lightedGray)
     }
 
-    override public func viewWillAppear(animated: Bool) {
+    override open func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
 		
         if displayLink != nil {
@@ -100,29 +100,29 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
         }
         
         displayLink = CADisplayLink(target: self, selector: #selector(MeshViewController.draw))
-        displayLink!.addToRunLoop(NSRunLoop.mainRunLoop(), forMode: NSRunLoopCommonModes)
+        displayLink!.add(to: RunLoop.main, forMode: RunLoopMode.commonModes)
 		
         viewpointController.reset()
 		
         if !colorEnabled {
-            displayControl.removeSegmentAtIndex(2, animated: false)
+            displayControl.removeSegment(at: 2, animated: false)
         }
     }
     
     // Make sure the status bar is disabled (iOS 7+)
-    override public func prefersStatusBarHidden() -> Bool {
+    override open var prefersStatusBarHidden : Bool {
         return true
     }
 
-    override public func didReceiveMemoryWarning () {
+    override open func didReceiveMemoryWarning () {
         
     }
     
-    func setupGL (context: EAGLContext) {
+    func setupGL (_ context: EAGLContext) {
 
         (self.view as! EAGLView).context = context
 
-        EAGLContext.setCurrentContext(context)
+        EAGLContext.setCurrent(context)
 
         renderer.initializeGL( GLenum(GL_TEXTURE3))
 
@@ -146,10 +146,10 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
         viewport[3] = Float(framebufferSize.height)
     }
     
-	@IBAction func dismissView(sender: AnyObject) {
+	@IBAction func dismissView(_ sender: AnyObject) {
 
 		displayControl.selectedSegmentIndex = 1
-		renderer.setRenderingMode(.LightedGray)
+		renderer.setRenderingMode(.lightedGray)
 		
         if delegate?.meshViewWillDismiss != nil {
             delegate?.meshViewWillDismiss()
@@ -165,7 +165,7 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
 
         self.eview.context = nil
 
-		dismissViewControllerAnimated(true, completion: {
+		dismiss(animated: true, completion: {
 			if self.delegate?.meshViewDidDismiss != nil {
 				self.delegate?.meshViewDidDismiss()
 			}
@@ -174,20 +174,20 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
 	
 	//MARK: - MeshViewer setup when loading the mesh
     
-    func setCameraProjectionMatrix (projection: GLKMatrix4) {
+    func setCameraProjectionMatrix (_ projection: GLKMatrix4) {
 
         viewpointController.setCameraProjection(projection)
         projectionMatrixBeforeUserInteractions = projection
     }
     
-    func resetMeshCenter (center: GLKVector3) {
+    func resetMeshCenter (_ center: GLKVector3) {
 
         viewpointController.reset()
         viewpointController.setMeshCenter(center)
         modelViewMatrixBeforeUserInteractions = viewpointController.currentGLModelViewMatrix()
     }
 	
-	func saveJpegFromRGBABuffer( filename: String, src_buffer: UnsafeMutablePointer<Void>, width: Int, height: Int)
+	func saveJpegFromRGBABuffer( _ filename: String, src_buffer: UnsafeMutableRawPointer, width: Int, height: Int)
 	{
 		let file: UnsafeMutablePointer<FILE>? = fopen(filename, "w")
 		if file == nil {
@@ -198,16 +198,16 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
 		var alphaInfo: CGImageAlphaInfo!
 		var bmcontext: CGContext?
 		colorSpace = CGColorSpaceCreateDeviceRGB()
-		alphaInfo = .NoneSkipLast
+		alphaInfo = .noneSkipLast
 
-		bmcontext = CGBitmapContextCreate(src_buffer, width, height, 8, width * 4, colorSpace!, alphaInfo.rawValue)!
-		var rgbImage: CGImage? = CGBitmapContextCreateImage(bmcontext!)
+		bmcontext = CGContext(data: src_buffer, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4, space: colorSpace!, bitmapInfo: alphaInfo.rawValue)!
+		var rgbImage: CGImage? = bmcontext!.makeImage()
 
 		bmcontext = nil
 		colorSpace = nil
 		
 		var jpgData: CFMutableData? = CFDataCreateMutable(nil, 0)
-		var imageDest: CGImageDestination? = CGImageDestinationCreateWithData(jpgData!, "public.jpeg", 1, nil)
+		var imageDest: CGImageDestination? = CGImageDestinationCreateWithData(jpgData!, "public.jpeg" as CFString, 1, nil)
 
 		var kcb = kCFTypeDictionaryKeyCallBacks
 		var vcb = kCFTypeDictionaryValueCallBacks
@@ -229,11 +229,11 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
 	}
 	
     //MARK: Email Mesh OBJ File
-	public func mailComposeController(controller: MFMailComposeViewController, didFinishWithResult result: MFMailComposeResult, error: NSError?) {
-		mailViewController?.dismissViewControllerAnimated(true, completion: nil)
+	open func mailComposeController(_ controller: MFMailComposeViewController, didFinishWith result: MFMailComposeResult, error: Error?) {
+		mailViewController?.dismiss(animated: true, completion: nil)
 	}
 
-    func prepareScreenShot (screenshotPath: String) {
+    func prepareScreenShot (_ screenshotPath: String) {
 		
         let width: Int32 = 320
         let height: Int32 = 240
@@ -274,30 +274,38 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
         // Screenshot rendering mode, always use colors if possible.
         if meshToRender.hasPerVertexUVTextureCoords() && meshToRender.meshYCbCrTexture() != nil {
 			
-            renderer!.setRenderingMode(.Textured)
+            renderer!.setRenderingMode(.textured)
 			
         } else if meshToRender.hasPerVertexColors() {
 			
-			renderer!.setRenderingMode(.PerVertexColor)
+			renderer!.setRenderingMode(.perVertexColor)
         
         } else {
             // meshToRender can be nil if there is no available color mesh.
-			renderer!.setRenderingMode(.LightedGray)
+			renderer!.setRenderingMode(.lightedGray)
         }
         
         // Render from the initial viewpoint for the screenshot.
         renderer!.clear()
 
-        withUnsafeMutablePointers(&projectionMatrixBeforeUserInteractions, &modelViewMatrixBeforeUserInteractions, {renderer!.render(UnsafeMutablePointer<GLfloat>($0), modelViewMatrix: UnsafeMutablePointer<GLfloat>($1))})
+        withUnsafeMutablePointer(to: &projectionMatrixBeforeUserInteractions) { projectionPtr in
+            withUnsafeMutablePointer(to: &modelViewMatrixBeforeUserInteractions) { modelViewPtr in
+                projectionPtr.withMemoryRebound(to: GLfloat.self, capacity: 1) { projectionFloatPtr in
+                    modelViewPtr.withMemoryRebound(to: GLfloat.self, capacity: 1) { modelViewFloatPtr in
+                        renderer!.render(projectionFloatPtr, modelViewMatrix: modelViewFloatPtr)
+                    }
+                }
+            }
+        }
 		
         // Back to current render mode
         renderer!.setRenderingMode(previousRenderingMode)
         
-        var screenShotRgbaBuffer = [UInt32](count: Int(width*height), repeatedValue: 0)
+        var screenShotRgbaBuffer = [UInt32](repeating: 0, count: Int(width*height))
 
-        var screenTopRowBuffer = [UInt32](count: Int(width), repeatedValue: 0)
+        var screenTopRowBuffer = [UInt32](repeating: 0, count: Int(width))
         
-        var screenBottomRowBuffer = [UInt32](count: Int(width), repeatedValue: 0)
+        var screenBottomRowBuffer = [UInt32](repeating: 0, count: Int(width))
         
         glReadPixels(0, 0, width, height, GLenum(GL_RGBA), GLenum(GL_UNSIGNED_BYTE), &screenShotRgbaBuffer)
 
@@ -311,9 +319,19 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
             let topIdx = Int(width * h)
             let bottomIdx = Int(width * (height - h - 1))
 
-            withUnsafePointers(&screenShotRgbaBuffer[topIdx], &screenBottomRowBuffer[0], {memcpy(UnsafeMutablePointer<Void>($0), UnsafeMutablePointer<Void>($1), Int(width) * Int(sizeof(UInt32)))})
-            
-            withUnsafePointers(&screenShotRgbaBuffer[bottomIdx], &screenTopRowBuffer[0], {memcpy(UnsafeMutablePointer<Void>($0), UnsafeMutablePointer<Void>($1), Int(width) * Int(sizeof(UInt32)))})
+            withUnsafeMutablePointer(to: &screenShotRgbaBuffer[topIdx]) { rgbaPtr in
+                withUnsafeMutablePointer(to: &screenBottomRowBuffer[0]) { rowPtr in
+                    memcpy(UnsafeMutableRawPointer(mutating: rgbaPtr), UnsafeMutableRawPointer(mutating: rowPtr),
+                           Int(width) * Int(MemoryLayout<UInt32>.size))
+                }
+            }
+
+            withUnsafeMutablePointer(to: &screenShotRgbaBuffer[bottomIdx]) { rgbaPtr in
+                withUnsafeMutablePointer(to: &screenTopRowBuffer[0]) { rowPtr in
+                    memcpy(UnsafeMutableRawPointer(mutating: rgbaPtr), UnsafeMutableRawPointer(mutating: rowPtr),
+                           Int(width) * Int(MemoryLayout<UInt32>.size))
+                }
+            }
 		}
 
 		saveJpegFromRGBABuffer(screenshotPath, src_buffer: &screenShotRgbaBuffer, width: Int(width), height: Int(height))
@@ -328,26 +346,26 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
         glDeleteRenderbuffers(1, &depthRenderBuffer)
     }
 
-	@IBAction func emailMesh(sender: AnyObject) {
+	@IBAction func emailMesh(_ sender: AnyObject) {
         
 		mailViewController = MFMailComposeViewController.init()
 		
 		if mailViewController == nil {
-			let alert = UIAlertController.init(title: "The email could not be sent.", message: "Please make sure an email account is properly setup on this device.", preferredStyle: .Alert)
+			let alert = UIAlertController.init(title: "The email could not be sent.", message: "Please make sure an email account is properly setup on this device.", preferredStyle: .alert)
 
-			let defaultAction = UIAlertAction.init(title: "OK", style: .Default, handler: nil)
+			let defaultAction = UIAlertAction.init(title: "OK", style: .default, handler: nil)
 			
 			alert.addAction(defaultAction)
 	
-			presentViewController(alert, animated: true, completion: nil)
+			present(alert, animated: true, completion: nil)
 			
 			return
 		}
 		
 		mailViewController!.mailComposeDelegate = self
 		
-		if UIDevice.currentDevice().userInterfaceIdiom == .Pad {
-			mailViewController!.modalPresentationStyle = .FormSheet
+		if UIDevice.current.userInterfaceIdiom == .pad {
+			mailViewController!.modalPresentationStyle = .formSheet
 		}
 		
 		// Setup paths and filenames.
@@ -365,18 +383,18 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
 
 		// since file is save in prepareScreenShot() need to getData() here
 		
-		if let sshot = NSData(contentsOfFile: fullPathFilename) {
+		if let sshot = try? Data(contentsOf: URL(fileURLWithPath: fullPathFilename)) {
 		
 			mailViewController?.addAttachmentData(sshot, mimeType: "image/jpeg", fileName: screenshotFilename)
 		}
 		else {
-			let alert = UIAlertController.init(title: "Error", message: "no pic", preferredStyle: .Alert)
+			let alert = UIAlertController.init(title: "Error", message: "no pic", preferredStyle: .alert)
 			
-			let defaultAction = UIAlertAction.init(title: "OK", style: .Default, handler: nil)
+			let defaultAction = UIAlertAction.init(title: "OK", style: .default, handler: nil)
 			
 			alert.addAction(defaultAction)
 			
-			presentViewController(alert, animated: true, completion: nil)
+			present(alert, animated: true, completion: nil)
 		}
 		
 		mailViewController!.setSubject("3D Model")
@@ -389,25 +407,25 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
             let zipfile = FileMgr.sharedInstance.saveMesh(zipFilename, data: meshToSend)
             
             if zipfile != nil {
-                mailViewController?.addAttachmentData(zipfile!, mimeType: "application/zip", fileName: zipFilename)
+                mailViewController?.addAttachmentData(zipfile! as Data, mimeType: "application/zip", fileName: zipFilename)
             }
         }
 		else {
 
 			mailViewController = nil
 			
-			let alert = UIAlertController.init(title: "The email could not be sent", message: "Exporting the mesh failed", preferredStyle: .Alert)
+			let alert = UIAlertController.init(title: "The email could not be sent", message: "Exporting the mesh failed", preferredStyle: .alert)
 			
-			let defaultAction = UIAlertAction.init(title: "OK", style: .Default, handler: nil)
+			let defaultAction = UIAlertAction.init(title: "OK", style: .default, handler: nil)
 			
 			alert.addAction(defaultAction)
 			
-			presentViewController(alert, animated: true, completion: nil)
+			present(alert, animated: true, completion: nil)
 			
 			return
 		}
 
-		presentViewController(mailViewController!, animated: true, completion: nil)
+		present(mailViewController!, animated: true, completion: nil)
     }
 	
     //MARK: Rendering
@@ -429,8 +447,16 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
         var currentProjection = viewpointController.currentGLProjectionMatrix()
         
         renderer!.clear()
-        
-        withUnsafeMutablePointers(&currentProjection, &currentModelView, {renderer!.render(UnsafeMutablePointer<GLfloat>($0), modelViewMatrix: UnsafeMutablePointer<GLfloat>($1))})
+
+        withUnsafeMutablePointer(to: &currentProjection) { projectionPtr in
+            withUnsafeMutablePointer(to: &currentModelView) { modelViewPtr in
+                projectionPtr.withMemoryRebound(to: GLfloat.self, capacity: 1) { projectionFloatPtr in
+                        modelViewPtr.withMemoryRebound(to: GLfloat.self, capacity: 1) { modelViewFloatPtr in
+                            renderer!.render(projectionFloatPtr, modelViewMatrix: modelViewFloatPtr)
+                    }
+                }
+            }
+        }
  
         needsDisplay = false
 		
@@ -439,59 +465,59 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
 	
     //MARK: Touch & Gesture Control
     
-    @IBAction func tapGesture(sender: UITapGestureRecognizer) {
-        if sender.state == .Ended {
+    @IBAction func tapGesture(_ sender: UITapGestureRecognizer) {
+        if sender.state == .ended {
             viewpointController.onTouchBegan()
         }
     }
 	
-	@IBAction func pinchScaleGesture(sender: UIPinchGestureRecognizer) {
+	@IBAction func pinchScaleGesture(_ sender: UIPinchGestureRecognizer) {
 
         // Forward to the ViewpointController.
-        if sender.state == .Began {
+        if sender.state == .began {
             viewpointController.onPinchGestureBegan(Float(sender.scale))
         }
-        else if sender.state == .Changed {
+        else if sender.state == .changed {
             viewpointController.onPinchGestureChanged(Float(sender.scale))
         }
     }
     
-	@IBAction func oneFingerPanGesture(sender: UIPanGestureRecognizer) {
+	@IBAction func oneFingerPanGesture(_ sender: UIPanGestureRecognizer) {
 
-        let touchPos = sender.locationInView(view)
-        let touchVel = sender.velocityInView(view)
+        let touchPos = sender.location(in: view)
+        let touchVel = sender.velocity(in: view)
         let touchPosVec = GLKVector2Make(Float(touchPos.x), Float(touchPos.y))
         let touchVelVec = GLKVector2Make(Float(touchVel.x), Float(touchVel.y))
 		
-        if sender.state == .Began {
+        if sender.state == .began {
             viewpointController.onOneFingerPanBegan(touchPosVec)
         }
-        else if sender.state == .Changed {
+        else if sender.state == .changed {
             viewpointController.onOneFingerPanChanged(touchPosVec)
         }
-        else if sender.state == .Ended {
+        else if sender.state == .ended {
             viewpointController.onOneFingerPanEnded(touchVelVec)
         }
     }
 	
-	@IBAction func twoFingersPanGesture(sender: AnyObject) {
+	@IBAction func twoFingersPanGesture(_ sender: AnyObject) {
 
-        if sender.numberOfTouches() != 2 {
+        if sender.numberOfTouches != 2 {
             return
         }
 		
-		let touchPos = sender.locationInView(view)
-		let touchVel = sender.velocityInView(view)
+		let touchPos = sender.location(in: view)
+		let touchVel = sender.velocity(in: view)
 		let touchPosVec = GLKVector2Make(Float(touchPos.x), Float(touchPos.y))
 		let touchVelVec = GLKVector2Make(Float(touchVel.x), Float(touchVel.y))
 		
-        if sender.state == .Began {
+        if sender.state == .began {
             viewpointController.onTwoFingersPanBegan(touchPosVec)
         }
-        else if sender.state == .Changed {
+        else if sender.state == .changed {
             viewpointController.onTwoFingersPanChanged(touchPosVec)
         }
-        else if sender.state == .Ended {
+        else if sender.state == .ended {
             viewpointController.onTwoFingersPanEnded(touchVelVec)
         }
     }
@@ -509,29 +535,29 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
 			
 			if	mesh!.hasPerVertexUVTextureCoords() {
               
-				renderer.setRenderingMode(.Textured)
+				renderer.setRenderingMode(.textured)
 			}
 			else if mesh!.hasPerVertexColors() {
              
-				renderer.setRenderingMode(.PerVertexColor)
+				renderer.setRenderingMode(.perVertexColor)
 			}
 			else {
             
-				renderer.setRenderingMode(.LightedGray)
+				renderer.setRenderingMode(.lightedGray)
 			}
 		}
     }
     
-    @IBAction func displayControlChanged(sender: AnyObject) {
+    @IBAction func displayControlChanged(_ sender: AnyObject) {
 
         switch displayControl.selectedSegmentIndex {
 		case 0: // x-ray
           
-            renderer.setRenderingMode(.XRay)
+            renderer.setRenderingMode(.xRay)
 			
 		case 1: // lighted-gray
          
-            renderer.setRenderingMode(.LightedGray)
+            renderer.setRenderingMode(.lightedGray)
 			
         case 2: // color
             
@@ -563,23 +589,23 @@ public class MeshViewController: UIViewController, UIGestureRecognizerDelegate, 
     
     func hideMeshViewerMessage() {
         
-        UIView.animateWithDuration(0.5, animations: {
+        UIView.animate(withDuration: 0.5, animations: {
             self.meshViewerMessageLabel.alpha = 0.0
             }, completion: { _ in
-                self.meshViewerMessageLabel.hidden = true
+                self.meshViewerMessageLabel.isHidden = true
         })
     }
     
-    func showMeshViewerMessage(msg: String) {
+    func showMeshViewerMessage(_ msg: String) {
         
         meshViewerMessageLabel.text = msg
         
-        if meshViewerMessageLabel.hidden == true {
+        if meshViewerMessageLabel.isHidden == true {
             
             meshViewerMessageLabel.alpha = 0.0
-            meshViewerMessageLabel.hidden = false
+            meshViewerMessageLabel.isHidden = false
             
-            UIView.animateWithDuration(0.5, animations: {
+            UIView.animate(withDuration: 0.5, animations: {
                 self.meshViewerMessageLabel.alpha = 1.0
             })
         }

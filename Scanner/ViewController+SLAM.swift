@@ -9,7 +9,7 @@
 //
 
 
-func deltaRotationAngleBetweenPosesInDegrees(previousPose: GLKMatrix4, newPose: GLKMatrix4) -> Float {
+func deltaRotationAngleBetweenPosesInDegrees(_ previousPose: GLKMatrix4, newPose: GLKMatrix4) -> Float {
 	
 	// Transpose is equivalent to inverse since we will only use the rotation part.
 	let deltaPose: GLKMatrix4 = GLKMatrix4Multiply(newPose, GLKMatrix4Transpose(previousPose))
@@ -23,7 +23,7 @@ func deltaRotationAngleBetweenPosesInDegrees(previousPose: GLKMatrix4, newPose: 
 	return angleInDegree
 }
 
-func computeTrackerMessage(hints: STTrackerHints) -> NSString? {
+func computeTrackerMessage(_ hints: STTrackerHints) -> NSString? {
 	
 	if hints.trackerIsLost {
 		return "Tracking Lost! Please Realign or Press Reset."
@@ -54,7 +54,7 @@ extension ViewController {
         _slamState.scene = STScene.init(context: _display!.context, freeGLTextureUnit: GLenum(GL_TEXTURE2))
 		
         // Initialize the camera pose tracker.
-        let trackerOptions: [NSObject : AnyObject] = [kSTTrackerTypeKey: _dynamicOptions.newTrackerIsOn ? STTrackerType.DepthAndColorBased.rawValue : STTrackerType.DepthBased.rawValue, kSTTrackerTrackAgainstModelKey: true, kSTTrackerQualityKey: STTrackerQuality.Accurate.rawValue, kSTTrackerBackgroundProcessingEnabledKey: true]
+        let trackerOptions: [AnyHashable: Any] = [kSTTrackerTypeKey: _dynamicOptions.newTrackerIsOn ? STTrackerType.depthAndColorBased.rawValue : STTrackerType.depthBased.rawValue, kSTTrackerTrackAgainstModelKey: true, kSTTrackerQualityKey: STTrackerQuality.accurate.rawValue, kSTTrackerBackgroundProcessingEnabledKey: true]
 
         // Initialize the camera pose tracker.
         _slamState.tracker = STTracker.init(scene: _slamState.scene!, options: trackerOptions)
@@ -67,7 +67,7 @@ extension ViewController {
 		// The mapper will be initialized when we start scanning.
 		
 		// Setup the cube placement initializer.
-		_slamState.cameraPoseInitializer = STCameraPoseInitializer.init(volumeSizeInMeters: _slamState.volumeSizeInMeters, options: [kSTCameraPoseInitializerStrategyKey: STCameraPoseInitializerStrategy.TableTopCube.rawValue])
+		_slamState.cameraPoseInitializer = STCameraPoseInitializer.init(volumeSizeInMeters: _slamState.volumeSizeInMeters, options: [kSTCameraPoseInitializerStrategyKey: STCameraPoseInitializerStrategy.tableTopCube.rawValue])
 		
 		// Set up the cube renderer with the current volume size.
 		_display!.cubeRenderer = STCubeRenderer.init(context: _display!.context)
@@ -79,14 +79,14 @@ extension ViewController {
 		// Start with cube placement mode
 		enterCubePlacementState()
 
-		let keyframeManagerOptions: [NSObject : AnyObject] = [
+		let keyframeManagerOptions: [AnyHashable: Any] = [
 			kSTKeyFrameManagerMaxSizeKey : _options.maxNumKeyFrames,
 			kSTKeyFrameManagerMaxDeltaTranslationKey : _options.maxKeyFrameTranslation,
 			kSTKeyFrameManagerMaxDeltaRotationKey : _options.maxKeyFrameRotation] // 20 degrees.
 		_slamState.prevFrameTimeStamp = -1.0
 		_slamState.keyFrameManager = STKeyFrameManager.init(options: keyframeManagerOptions)
 		
-		_depthAsRgbaVisualizer = STDepthToRgba.init(options: [kSTDepthToRgbaStrategyKey: STDepthToRgbaStrategy.Gray.rawValue])
+		_depthAsRgbaVisualizer = STDepthToRgba.init(options: [kSTDepthToRgbaStrategyKey: STDepthToRgbaStrategy.gray.rawValue])
 		
 		_slamState.initialized = true
 	}
@@ -144,7 +144,7 @@ extension ViewController {
 		                      voxelSizeInMeters )
 		NSLog(msg)
 		
-		let mapperOptions: [NSObject: AnyObject] =
+		let mapperOptions: [AnyHashable: Any] =
 			[kSTMapperLegacyKey : !_dynamicOptions.newMapperIsOn,
 			 kSTMapperVolumeResolutionKey : voxelSizeInMeters,
 			 kSTMapperVolumeBoundsKey: [volumeBounds.x, volumeBounds.y, volumeBounds.z],
@@ -155,14 +155,14 @@ extension ViewController {
 		_slamState.mapper = STMapper.init(scene: _slamState.scene, options: mapperOptions)
 	}
 	
-	func maybeAddKeyframeWithDepthFrame(depthFrame: STDepthFrame, colorFrame: STColorFrame?, depthCameraPoseBeforeTracking: GLKMatrix4) -> NSString? {
+	func maybeAddKeyframeWithDepthFrame(_ depthFrame: STDepthFrame, colorFrame: STColorFrame?, depthCameraPoseBeforeTracking: GLKMatrix4) -> NSString? {
 		
 		if colorFrame == nil {
 			return nil // nothing to do
 		}
 
 		// Only consider adding a new keyframe if the accuracy is high enough.
-		if _slamState.tracker!.poseAccuracy.rawValue < STTrackerPoseAccuracy.Approximate.rawValue {
+		if _slamState.tracker!.poseAccuracy.rawValue < STTrackerPoseAccuracy.approximate.rawValue {
 			return nil
 		}
 	
@@ -171,14 +171,18 @@ extension ViewController {
 		// Make sure the pose is in color camera coordinates in case we are not using registered depth.
 		var colorCameraPoseInDepthCoordinateSpace = GLKMatrix4.init()
         
-        withUnsafeMutablePointer(&colorCameraPoseInDepthCoordinateSpace.m, {depthFrame.colorCameraPoseInDepthCoordinateFrame(UnsafeMutablePointer<Float>($0))})
+        withUnsafeMutablePointer(to: &colorCameraPoseInDepthCoordinateSpace.m) { ptr in
+            ptr.withMemoryRebound(to: Float.self, capacity: 1) { floatPtr in
+                depthFrame.colorCameraPose(inDepthCoordinateFrame: floatPtr)
+            }
+        }
 
 		let colorCameraPoseAfterTracking = GLKMatrix4Multiply(depthCameraPoseAfterTracking(),colorCameraPoseInDepthCoordinateSpace)
 	
 		var showHoldDeviceStill = false
 	
 		// Check if the viewpoint has moved enough to add a new keyframe
-		if _slamState.keyFrameManager!.wouldBeNewKeyframeWithColorCameraPose(colorCameraPoseAfterTracking) {
+		if _slamState.keyFrameManager!.wouldBeNewKeyframe(withColorCameraPose: colorCameraPoseAfterTracking) {
 	
 			let isFirstFrame = _slamState.prevFrameTimeStamp < 0
 			
@@ -213,8 +217,8 @@ extension ViewController {
 	
 			if canAddKeyframe {
 			
-				_slamState.keyFrameManager!.processKeyFrameCandidateWithColorCameraPose(
-					colorCameraPoseAfterTracking,
+                _slamState.keyFrameManager!.processKeyFrameCandidate(
+                    withColorCameraPose: colorCameraPoseAfterTracking,
 					colorFrame: colorFrame,
 					depthFrame: nil) // Spare the depth frame memory, since we do not need it in keyframes.
 			}
@@ -232,26 +236,26 @@ extension ViewController {
 		return nil
 	}
 	
-	func updateMeshAlphaForPoseAccuracy(poseAccuracy: STTrackerPoseAccuracy) {
+	func updateMeshAlphaForPoseAccuracy(_ poseAccuracy: STTrackerPoseAccuracy) {
 	
 		switch (poseAccuracy) {
 		
-		case .High, .Approximate:
+		case .high, .approximate:
 			
 			_display!.meshRenderingAlpha = 0.8
 			
-		case .Low:
+		case .low:
 			
 			_display!.meshRenderingAlpha = 0.4
 			
-		case .VeryLow, .NotAvailable:
+		case .veryLow, .notAvailable:
 			
 			_display!.meshRenderingAlpha = 0.1;
 
 		}
 	}
 
-    func processDepthFrame(depthFrame: STDepthFrame, colorFrame: STColorFrame?) {
+    func processDepthFrame(_ depthFrame: STDepthFrame, colorFrame: STColorFrame?) {
 
 		if _options.applyExpensiveCorrectionToDepth
 		{
@@ -279,12 +283,12 @@ extension ViewController {
         
         switch _slamState.scannerState {
 			
-        case .CubePlacement:
+        case .cubePlacement:
   
             var depthFrameForROIHighlighting: STDepthFrame = depthFrame
 
             if _useColorCamera  {
-                depthFrameForROIHighlighting = depthFrame.registeredToColorFrame(colorFrame)
+                depthFrameForROIHighlighting = depthFrame.registered(to: colorFrame)
             }
             
             // Provide the new depth frame to the cube renderer for ROI highlighting.
@@ -294,7 +298,7 @@ extension ViewController {
             if GLKVector3Length(_lastGravity) > 1e-5 {
                 
                 do {
-                    try _slamState.cameraPoseInitializer?.updateCameraPoseWithGravity(_lastGravity, depthFrame: depthFrame)
+                    try _slamState.cameraPoseInitializer?.updateCameraPose(withGravity: _lastGravity, depthFrame: depthFrame)
                     
                 } catch {
                     assertionFailure("Camera pose initializer error.")
@@ -305,10 +309,10 @@ extension ViewController {
             _display!.cubeRenderer!.setCubeHasSupportPlane((_slamState.cameraPoseInitializer?.hasSupportPlane)!)
             
             // Enable the scan button if the pose initializer could estimate a pose.
-            self.scanButton.enabled = _slamState.cameraPoseInitializer!.hasValidPose
+            self.scanButton.isEnabled = _slamState.cameraPoseInitializer!.hasValidPose
             
             
-        case .Scanning:
+        case .scanning:
             // First try to estimate the 3D pose of the new frame.
 			
 			var trackingMessage: NSString? = nil
@@ -319,7 +323,7 @@ extension ViewController {
 			
 			// Integrate it into the current mesh estimate if tracking was successful.
             do {
-                try _slamState.tracker!.updateCameraPoseWithDepthFrame(depthFrame, colorFrame: colorFrame)
+                try _slamState.tracker!.updateCameraPose(with: depthFrame, colorFrame: colorFrame)
 				
 				// Update the tracking message.
 				trackingMessage = computeTrackerMessage(_slamState.tracker!.trackerHints)
@@ -328,7 +332,7 @@ extension ViewController {
 				updateMeshAlphaForPoseAccuracy(_slamState.tracker!.poseAccuracy)
 				
 				// If the tracker accuracy is high, use this frame for mapper update and maybe as a keyframe too.
-				if _slamState.tracker!.poseAccuracy.rawValue >= STTrackerPoseAccuracy.High.rawValue {
+				if _slamState.tracker!.poseAccuracy.rawValue >= STTrackerPoseAccuracy.high.rawValue {
 					_slamState.mapper?.integrateDepthFrame(depthFrame, cameraPose: (_slamState.tracker?.lastFrameCameraPose())!)
 					}
 				
@@ -348,12 +352,12 @@ extension ViewController {
             } catch let trackingError as NSError {
 				NSLog("[Structure] STTracker Error: %@.", trackingError.localizedDescription)
 				
-				trackingMessage = trackingError.localizedDescription
+				trackingMessage = trackingError.localizedDescription as NSString
             }
 			
 			_slamState.prevFrameTimeStamp = depthFrame.timestamp
 		
-			case .Viewing:
+			case .viewing:
 				break
 			// Do nothing, the MeshViewController will take care of this.
 		}
@@ -373,7 +377,7 @@ extension ViewController: STSensorControllerDelegate {
     func setupStructureSensor() {
         
         // Get the sensor controller singleton
-        _sensorController = STSensorController.sharedController()
+        _sensorController = STSensorController.shared()
         
         // Set ourself as the delegate to receive sensor data.
         _sensorController.delegate = self
@@ -392,31 +396,31 @@ extension ViewController: STSensorControllerDelegate {
             connectToStructureSensorAndStartStreaming()
         }
         
-        if !calibrationOverlay.hidden {
+        if !calibrationOverlay.isHidden {
             calibrationOverlay.alpha = 1
         }
         
-        if !instructionOverlay.hidden {
+        if !instructionOverlay.isHidden {
             instructionOverlay.alpha = 1
         }
     }
     
     func sensorDidLeaveLowPowerMode() {
         
-        _appStatus.sensorStatus = .NeedsUserToConnect
+        _appStatus.sensorStatus = .needsUserToConnect
         updateAppStatusMessage()
     }
     
     func sensorBatteryNeedsCharging() {
         
         // Notify the user that the sensor needs to be charged.
-        _appStatus.sensorStatus = .NeedsUserToCharge
+        _appStatus.sensorStatus = .needsUserToCharge
         updateAppStatusMessage()
     }
     
-    func sensorDidStopStreaming(reason: STSensorControllerDidStopStreamingReason) {
+    func sensorDidStopStreaming(_ reason: STSensorControllerDidStopStreamingReason) {
         
-        if reason == .AppWillResignActive {
+        if reason == .appWillResignActive {
             stopColorCamera()
             NSLog("[Structure] Stopped streaming because the app will resign its active state.")
         } else {
@@ -429,14 +433,14 @@ extension ViewController: STSensorControllerDelegate {
         // If we receive the message while in background, do nothing. We'll check the status when we
         // become active again.
         
-        if UIApplication.sharedApplication().applicationState != .Active {
+        if UIApplication.shared.applicationState != .active {
             return
         }
         
         NSLog("[Structure] Sensor disconnected!")
         
         // Reset the scan on disconnect, since we won't be able to recover afterwards.
-        if _slamState.scannerState == .Scanning {
+        if _slamState.scannerState == .scanning {
             resetButtonPressed(scanButton)
         }
         
@@ -446,15 +450,15 @@ extension ViewController: STSensorControllerDelegate {
         // We only show the app status when we need sensor
         if currentStateNeedsSensor() {
             
-            _appStatus.sensorStatus = .NeedsUserToConnect
+            _appStatus.sensorStatus = .needsUserToConnect
             updateAppStatusMessage()
         }
         
-        if !calibrationOverlay.hidden {
+        if !calibrationOverlay.isHidden {
             calibrationOverlay.alpha = 0
         }
         
-        if !instructionOverlay.hidden {
+        if !instructionOverlay.isHidden {
             instructionOverlay.alpha = 0
         }
         
@@ -466,7 +470,7 @@ extension ViewController: STSensorControllerDelegate {
         // Try connecting to a Structure Sensor.
         let result: STSensorControllerInitStatus = _sensorController.initializeSensorConnection()
         
-        if result == .Success || result == .AlreadyInitialized {
+        if result == .success || result == .alreadyInitialized {
             
             // Even though _useColorCamera was set in viewDidLoad by asking if an approximate calibration is guaranteed,
             // it's still possible that the Structure Sensor that has just been plugged in has a custom or approximate calibration
@@ -474,7 +478,7 @@ extension ViewController: STSensorControllerDelegate {
             
             let calibrationType = _sensorController.calibrationType()
             
-            _useColorCamera = (calibrationType == .Approximate || calibrationType == .DeviceSpecific)
+            _useColorCamera = (calibrationType == .approximate || calibrationType == .deviceSpecific)
             
             if _useColorCamera {
                 
@@ -510,27 +514,27 @@ extension ViewController: STSensorControllerDelegate {
             onSLAMOptionsChanged()
             
             // Update the app status message.
-            _appStatus.sensorStatus = .Ok
+            _appStatus.sensorStatus = .ok
             updateAppStatusMessage()
             
             // Start streaming depth data.
             startStructureSensorStreaming()
         } else {
             switch (result) {
-            case .SensorNotFound:
+            case .sensorNotFound:
                 NSLog("[Structure] No sensor found")
                 
-            case .OpenFailed:
+            case .openFailed:
                 NSLog("[Structure] Error: Open failed.")
                 
-            case .SensorIsWakingUp:
+            case .sensorIsWakingUp:
                 NSLog("[Structure] Error: Sensor still waking up.")
                 
             default:
                 break
             }
             
-            _appStatus.sensorStatus = .NeedsUserToConnect
+            _appStatus.sensorStatus = .needsUserToConnect
             updateAppStatusMessage()
         }
         
@@ -554,7 +558,7 @@ extension ViewController: STSensorControllerDelegate {
                 // If we use registered depth, we also need to specify a fixed lens position value for the color camera.
                 do {
                     //	NSLog("RegisteredDepth320x240")
-                    try _sensorController.startStreamingWithOptions([kSTStreamConfigKey: STStreamConfig.RegisteredDepth320x240.rawValue, kSTFrameSyncConfigKey:  STFrameSyncConfig.DepthAndRgb.rawValue, kSTColorCameraFixedLensPositionKey: _options.lensPosition])
+                    try _sensorController.startStreaming(options: [kSTStreamConfigKey: STStreamConfig.registeredDepth320x240.rawValue, kSTFrameSyncConfigKey:  STFrameSyncConfig.depthAndRgb.rawValue, kSTColorCameraFixedLensPositionKey: _options.lensPosition])
                 } catch let error as NSError {
                     
                     NSLog("Error during streaming start: %s", error.localizedDescription)
@@ -565,7 +569,7 @@ extension ViewController: STSensorControllerDelegate {
                 // We are using the color camera, so let's make sure the depth gets synchronized with it.
                 do {
                     //NSLog("Depth320x240")
-                    try _sensorController.startStreamingWithOptions([kSTStreamConfigKey: STStreamConfig.Depth320x240.rawValue, kSTFrameSyncConfigKey: STFrameSyncConfig.DepthAndRgb.rawValue])
+                    try _sensorController.startStreaming(options: [kSTStreamConfigKey: STStreamConfig.depth320x240.rawValue, kSTFrameSyncConfigKey: STFrameSyncConfig.depthAndRgb.rawValue])
                 } catch let error as NSError {
                     
                     NSLog("Error during streaming start: %s", error.localizedDescription)
@@ -580,7 +584,7 @@ extension ViewController: STSensorControllerDelegate {
             
             do {
                 //NSLog("Depth320x240")
-                try _sensorController.startStreamingWithOptions([kSTStreamConfigKey: STStreamConfig.Depth320x240.rawValue, kSTFrameSyncConfigKey: STFrameSyncConfig.Off.rawValue])
+                try _sensorController.startStreaming(options: [kSTStreamConfigKey: STStreamConfig.depth320x240.rawValue, kSTFrameSyncConfigKey: STFrameSyncConfig.off.rawValue])
                 
             } catch let error as NSError {
                 
@@ -599,19 +603,19 @@ extension ViewController: STSensorControllerDelegate {
     func onStructureSensorStartedStreaming() {
         
         // The Calibrator app will be updated to support future iPads, and additional attachment brackets will be released as well.
-        let deviceIsLikelySupportedByCalibratorApp = (UIDevice.currentDevice().userInterfaceIdiom == .Pad)
+        let deviceIsLikelySupportedByCalibratorApp = (UIDevice.current.userInterfaceIdiom == .pad)
         
         let calibrationType = _sensorController.calibrationType()
         // Only present the option to switch over to the Calibrator app if the sensor doesn't already have a device specific
         // calibration and the app knows how to calibrate this iOS device.
-        if calibrationType != .DeviceSpecific && deviceIsLikelySupportedByCalibratorApp {
+        if calibrationType != .deviceSpecific && deviceIsLikelySupportedByCalibratorApp {
             
             calibrationOverlay.alpha = 1
-            calibrationOverlay.hidden = false
+            calibrationOverlay.isHidden = false
         }
         else {
             calibrationOverlay.alpha = 0
-            calibrationOverlay.hidden = true
+            calibrationOverlay.isHidden = true
         }
         
         if !_slamState.initialized {
@@ -619,7 +623,7 @@ extension ViewController: STSensorControllerDelegate {
         }
     }
     
-    func sensorDidOutputSynchronizedDepthFrame(depthFrame: STDepthFrame!, colorFrame: STColorFrame!) {
+    func sensorDidOutputSynchronizedDepthFrame(_ depthFrame: STDepthFrame!, colorFrame: STColorFrame!) {
         
         if _slamState.initialized {
             
@@ -629,7 +633,7 @@ extension ViewController: STSensorControllerDelegate {
         }
     }
     
-    func sensorDidOutputDepthFrame(depthFrame: STDepthFrame) {
+    func sensorDidOutputDepthFrame(_ depthFrame: STDepthFrame) {
         
         if _slamState.initialized {
             

@@ -15,7 +15,7 @@ extension ViewController {
     func setupGL() {
 		
         // Create an EAGLContext for our EAGLView.
-		_display?.context = EAGLContext.init(API: .OpenGLES2)
+		_display?.context = EAGLContext.init(api: .openGLES2)
 		
 		if _display!.context == nil {
 			NSLog("Failed to create ES context")
@@ -66,7 +66,7 @@ extension ViewController {
         self._display!.viewport[3] = Float(frameBufferSize.height)
     }
     
-    func uploadGLColorTexture(colorFrame colorFrame: STColorFrame) {
+    func uploadGLColorTexture(colorFrame: STColorFrame) {
         
         var colorFrame = colorFrame
 		
@@ -87,7 +87,7 @@ extension ViewController {
 		
         // Displaying image with width over 1280 is an overkill. Downsample it to save bandwidth.
         while colorFrame.width > 2560 {
-            colorFrame = colorFrame.halfResolutionColorFrame
+            colorFrame = colorFrame.halfResolution
         }
 		
         var err: CVReturn
@@ -160,16 +160,16 @@ extension ViewController {
         glTexParameterf( GLenum(GL_TEXTURE_2D), GLenum(GL_TEXTURE_WRAP_T), GLfloat(GL_CLAMP_TO_EDGE))
     }
     
-    func uploadGLColorTextureFromDepth(depthFrame: STDepthFrame) {
+    func uploadGLColorTextureFromDepth(_ depthFrame: STDepthFrame) {
 		
-        _depthAsRgbaVisualizer!.convertDepthFrameToRgba(depthFrame)
+        _depthAsRgbaVisualizer!.convertDepthFrame(toRgba: depthFrame)
         glActiveTexture( GLenum(GL_TEXTURE0))
         glBindTexture( GLenum(GL_TEXTURE_2D), _display!.depthAsRgbaTexture)
 		
         glTexImage2D( GLenum(GL_TEXTURE_2D), 0, GL_RGBA, _depthAsRgbaVisualizer!.width, _depthAsRgbaVisualizer!.height, 0, GLenum(GL_RGBA), GLenum(GL_UNSIGNED_BYTE), _depthAsRgbaVisualizer!.rgbaBuffer)
     }
     
-    func renderSceneForDepthFrame(depthFrame: STDepthFrame, colorFrame: STColorFrame?) {
+    func renderSceneForDepthFrame(_ depthFrame: STDepthFrame, colorFrame: STColorFrame?) {
 		
         // Activate our view framebuffer.
         self.eview.setFramebuffer()
@@ -184,7 +184,7 @@ extension ViewController {
 		
         switch _slamState.scannerState {
 			
-        case .CubePlacement:
+        case .cubePlacement:
 			
             // Render the background image from the color camera.
             renderCameraImage()
@@ -200,8 +200,12 @@ extension ViewController {
                     // Make sure the viewpoint is always to color camera one, even if not using registered depth.
 					
                     var colorCameraPoseInStreamCoordinateSpace = GLKMatrix4.init()
-  
-                    withUnsafeMutablePointer(&colorCameraPoseInStreamCoordinateSpace, {depthFrame.colorCameraPoseInDepthCoordinateFrame(UnsafeMutablePointer<Float>($0))})
+
+                    withUnsafeMutablePointer(to: &colorCameraPoseInStreamCoordinateSpace) { ptr in
+                        ptr.withMemoryRebound(to: Float.self, capacity: 1) { floatPtr in
+                            depthFrame.colorCameraPose(inDepthCoordinateFrame: floatPtr)
+                        }
+                    }
        
                     // colorCameraPoseInWorld
                     cameraViewpoint = GLKMatrix4Multiply(depthCameraPose, colorCameraPoseInStreamCoordinateSpace)
@@ -213,13 +217,13 @@ extension ViewController {
                 }
 				
                 // Highlighted depth values inside the current volume area.
-                _display!.cubeRenderer!.renderHighlightedDepthWithCameraPose(cameraViewpoint, alpha: alpha)
+                _display!.cubeRenderer!.renderHighlightedDepth(withCameraPose: cameraViewpoint, alpha: alpha)
 				
                 // Render the wireframe cube corresponding to the current scanning volume.
-                _display!.cubeRenderer!.renderCubeOutlineWithCameraPose(cameraViewpoint, depthTestEnabled: false, occlusionTestEnabled: true)
+                _display!.cubeRenderer!.renderCubeOutline(withCameraPose: cameraViewpoint, depthTestEnabled: false, occlusionTestEnabled: true)
             }
             
-        case .Scanning:
+        case .scanning:
 			
             // Enable GL blending to show the mesh with some transparency.
             glEnable( GLenum(GL_BLEND))
@@ -244,8 +248,12 @@ extension ViewController {
                 // If we want to use the color camera viewpoint, and are not using registered depth, then
                 // we need to deduce the color camera pose from the depth camera pose.
                 var colorCameraPoseInDepthCoordinateSpace = GLKMatrix4.init()
-                
-                withUnsafeMutablePointer(&colorCameraPoseInDepthCoordinateSpace, {depthFrame.colorCameraPoseInDepthCoordinateFrame(UnsafeMutablePointer<Float>($0))})
+
+                withUnsafeMutablePointer(to: &colorCameraPoseInDepthCoordinateSpace) { ptr in
+                    ptr.withMemoryRebound(to: Float.self, capacity: 1) { floatPtr in
+                        depthFrame.colorCameraPose(inDepthCoordinateFrame: floatPtr)
+                    }
+                }
                 
                 // colorCameraPoseInWorld
                 cameraViewpoint = GLKMatrix4Multiply(depthCameraPose, colorCameraPoseInDepthCoordinateSpace)
@@ -254,8 +262,8 @@ extension ViewController {
                 cameraViewpoint = depthCameraPose
             }
 			
-            _slamState.scene!.renderMeshFromViewpoint(
-										cameraViewpoint,
+            _slamState.scene!.renderMesh(
+                fromViewpoint: cameraViewpoint,
 										cameraGLProjection: cameraGLProjection,
 										alpha: _display!.meshRenderingAlpha,
 										highlightOutOfRangeDepth: true,
@@ -265,8 +273,8 @@ extension ViewController {
 			
             // Render the wireframe cube corresponding to the scanning volume.
             // Here we don't enable occlusions to avoid performance hit.
-            _display!.cubeRenderer!.renderCubeOutlineWithCameraPose (
-									cameraViewpoint,
+            _display!.cubeRenderer!.renderCubeOutline (
+                withCameraPose: cameraViewpoint,
 									depthTestEnabled: true,
 									occlusionTestEnabled: false)
             
@@ -299,7 +307,7 @@ extension ViewController {
 			
             glDisable(GLenum(GL_BLEND))
             _display!.yCbCrTextureShader!.useShaderProgram()
-            _display!.yCbCrTextureShader!.renderWithLumaTexture(GL_TEXTURE0, chromaTexture: GL_TEXTURE1)
+            _display!.yCbCrTextureShader!.render(withLumaTexture: GL_TEXTURE0, chromaTexture: GL_TEXTURE1)
         }
         else {
 			

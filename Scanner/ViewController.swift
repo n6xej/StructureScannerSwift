@@ -36,7 +36,7 @@ struct Options {
 	var maxNumKeyFrames: Int = 48
 
 	// Colorizer quality
-	var colorizerQuality: STColorizerQuality = STColorizerQuality.HighQuality
+	var colorizerQuality: STColorizerQuality = STColorizerQuality.highQuality
 
 	// Take a new keyframe in the rotation difference is higher than 20 degrees.
 	var maxKeyFrameRotation: CGFloat = CGFloat(20 * (M_PI / 180)) // 20 degrees
@@ -70,9 +70,9 @@ struct Options {
 
 enum ScannerState: Int {
 
-	case CubePlacement = 0	// Defining the volume to scan
-	case Scanning			// Scanning
-	case Viewing			// Visualizing the mesh
+	case cubePlacement = 0	// Defining the volume to scan
+	case scanning			// Scanning
+	case viewing			// Visualizing the mesh
 }
 
 // SLAM-related members.
@@ -81,7 +81,7 @@ struct SlamData {
 	var initialized = false
 	var showingMemoryWarning = false
 
-	var prevFrameTimeStamp: NSTimeInterval = -1
+	var prevFrameTimeStamp: TimeInterval = -1
 
 	var scene: STScene? = nil
 	var tracker: STTracker? = nil
@@ -89,9 +89,9 @@ struct SlamData {
 	var cameraPoseInitializer: STCameraPoseInitializer? = nil
 	var initialDepthCameraPose: GLKMatrix4 = GLKMatrix4Identity
 	var keyFrameManager: STKeyFrameManager? = nil
-	var scannerState: ScannerState = .CubePlacement
+	var scannerState: ScannerState = .cubePlacement
 
-	var volumeSizeInMeters = GLKVector3Make(Float.NaN, Float.NaN, Float.NaN)
+	var volumeSizeInMeters = GLKVector3Make(Float.nan, Float.nan, Float.nan)
 }
 
 // Utility struct to manage a gesture-based scale.
@@ -101,8 +101,8 @@ struct PinchScaleState {
 	var initialPinchScale: CGFloat = 1
 }
 
-func keepInRange(value: Float, minValue: Float, maxValue: Float) -> Float {
-	if isnan(value) {
+func keepInRange(_ value: Float, minValue: Float, maxValue: Float) -> Float {
+	if value.isNaN {
 		return minValue
 	}
 	if value > maxValue {
@@ -120,13 +120,13 @@ struct AppStatus {
 	let needColorCameraAccessMessage = "This app requires camera access to capture color.\nAllow access by going to Settings → Privacy → Camera."
 
 	enum SensorStatus {
-		case Ok
-		case NeedsUserToConnect
-		case NeedsUserToCharge
+		case ok
+		case needsUserToConnect
+		case needsUserToCharge
 	}
 
 	// Structure Sensor status.
-	var sensorStatus: SensorStatus = .Ok
+	var sensorStatus: SensorStatus = .ok
 
 	// Whether iOS camera access was granted by the user.
 	var colorCameraIsAuthorized = true
@@ -219,7 +219,7 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 
 	// IMU handling.
 	var _motionManager: CMMotionManager? = nil
-	var _imuQueue: NSOperationQueue? = nil
+	var _imuQueue: OperationQueue? = nil
 
 	var _naiveColorizeTask: STBackgroundTask? = nil
 	var _enhancedColorizeTask: STBackgroundTask? = nil
@@ -233,8 +233,8 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 
 	deinit {
 		avCaptureSession!.stopRunning()
-		if EAGLContext.currentContext() == _display!.context {
-			EAGLContext.setCurrentContext(nil)
+		if EAGLContext.current() == _display!.context {
+			EAGLContext.setCurrent(nil)
 		}
 	}
 
@@ -242,14 +242,14 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
         super.viewDidLoad()
 
         // initially hide tracker view
-		enableNewTrackerView.hidden = true
+		enableNewTrackerView.isHidden = true
 		enableNewTrackerView.alpha = 0.0
 
         calibrationOverlay.alpha = 0
-        calibrationOverlay.hidden = true
+        calibrationOverlay.isHidden = true
 
         instructionOverlay.alpha = 0
-        instructionOverlay.hidden = true
+        instructionOverlay.isHidden = true
 
         // Do any additional setup after loading the view.
         _slamState.initialized = false
@@ -270,13 +270,13 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 		_useColorCamera = STSensorController.approximateCalibrationGuaranteedForDevice()
 
 		// Make sure we get notified when the app becomes active to start/restore the sensor state if necessary.
-		NSNotificationCenter.defaultCenter().addObserver(self, selector: #selector(ViewController.appDidBecomeActive), name: UIApplicationDidBecomeActiveNotification, object: nil)
+		NotificationCenter.default.addObserver(self, selector: #selector(ViewController.appDidBecomeActive), name: NSNotification.Name.UIApplicationDidBecomeActive, object: nil)
 
 		initializeDynamicOptions()
 		syncUIfromDynamicOptions()
     }
 
-	override func viewDidAppear(animated: Bool) {
+	override func viewDidAppear(_ animated: Bool) {
 		super.viewDidAppear(animated)
 
 		// The framebuffer will only be really ready with its final size after the view appears.
@@ -286,18 +286,18 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 
 		updateAppStatusMessage()
 
-        let defaults = NSUserDefaults.standardUserDefaults()
+        let defaults = UserDefaults.standard
 
-         if !defaults.boolForKey("instructionOverlay") {
+         if !defaults.bool(forKey: "instructionOverlay") {
 
-            NSTimer.schedule(10.0, handler: {_ in
-                self.instructionOverlay.hidden = false
+            Timer.schedule(10.0, handler: {_ in
+                self.instructionOverlay.isHidden = false
                 self.instructionOverlay.alpha = 1
-                NSTimer.schedule(15.0, handler: { _ in
-                    UIView.animateWithDuration(0.3, animations: {
+                Timer.schedule(15.0, handler: { _ in
+                    UIView.animate(withDuration: 0.3, animations: {
 
                         self.instructionOverlay!.alpha = 0
-                        self.instructionOverlay!.hidden = true
+                        self.instructionOverlay!.isHidden = true
                     })
                 })
             })
@@ -316,7 +316,7 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 
 		// Abort the current scan if we were still scanning before going into background since we
 		// are not likely to recover well.
-		if _slamState.scannerState == .Scanning {
+		if _slamState.scannerState == .scanning {
 			resetButtonPressed(resetButton)
 		}
 	}
@@ -336,17 +336,17 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 	func syncUIfromDynamicOptions() {
 
 		// This method ensures the UI reflects the dynamic settings.
-		enableNewTrackerSwitch.on = _dynamicOptions.newTrackerIsOn
-		enableNewTrackerSwitch.enabled = _dynamicOptions.newTrackerSwitchEnabled
+		enableNewTrackerSwitch.isOn = _dynamicOptions.newTrackerIsOn
+		enableNewTrackerSwitch.isEnabled = _dynamicOptions.newTrackerSwitchEnabled
 
-		enableHighResMappingSwitch.on = _dynamicOptions.highResMapping
-		enableHighResMappingSwitch.enabled = _dynamicOptions.highResMappingSwitchEnabled
+		enableHighResMappingSwitch.isOn = _dynamicOptions.highResMapping
+		enableHighResMappingSwitch.isEnabled = _dynamicOptions.highResMappingSwitchEnabled
 
-		enableNewMapperSwitch.on = _dynamicOptions.newMapperIsOn
-		enableNewMapperSwitch.enabled = _dynamicOptions.newMapperSwitchEnabled
+		enableNewMapperSwitch.isOn = _dynamicOptions.newMapperIsOn
+		enableNewMapperSwitch.isEnabled = _dynamicOptions.newMapperSwitchEnabled
 
-		enableHighResolutionColorSwitch.on = _dynamicOptions.highResColoring
-		enableHighResolutionColorSwitch.enabled = _dynamicOptions.highResColoringSwitchEnabled
+		enableHighResolutionColorSwitch.isOn = _dynamicOptions.highResColoring
+		enableHighResolutionColorSwitch.isEnabled = _dynamicOptions.highResColoringSwitchEnabled
 
 	}
 
@@ -356,7 +356,7 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
         FileMgr.sharedInstance.useSubpath("scannerCache")
 
 		// Make sure the status bar is hidden.
-		UIApplication.sharedApplication().setStatusBarHidden(true, withAnimation: .Slide)
+		UIApplication.shared.setStatusBarHidden(true, with: .slide)
 
 		// Fully transparent message label, initially.
 		appStatusMessageLabel.alpha = 0
@@ -366,20 +366,20 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 	}
 
 	// Make sure the status bar is disabled (iOS 7+)
-	override func prefersStatusBarHidden() -> Bool {
+	override var prefersStatusBarHidden : Bool {
 		return true
 	}
 
 	func setupMeshViewController() {
 		// The mesh viewer will be used after scanning.
-		if UIDevice.currentDevice().userInterfaceIdiom == .Phone {
-			meshViewController = UIStoryboard(name: "Main_iPhone", bundle: nil).instantiateViewControllerWithIdentifier("MeshViewController") as! MeshViewController
+		if UIDevice.current.userInterfaceIdiom == .phone {
+			meshViewController = UIStoryboard(name: "Main_iPhone", bundle: nil).instantiateViewController(withIdentifier: "MeshViewController") as! MeshViewController
 		} else {
-			meshViewController = UIStoryboard(name: "Main_iPad", bundle: nil).instantiateViewControllerWithIdentifier("MeshViewController") as! MeshViewController
+			meshViewController = UIStoryboard(name: "Main_iPad", bundle: nil).instantiateViewController(withIdentifier: "MeshViewController") as! MeshViewController
 		}
 	}
 
-	func presentMeshViewer(mesh: STMesh) {
+	func presentMeshViewer(_ mesh: STMesh) {
 
 		meshViewController.setupGL(_display!.context!)
 		meshViewController.colorEnabled = _useColorCamera
@@ -390,7 +390,7 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 		var totalNumVertices: Int32 = 0
 
 		for  i in 0..<mesh.numberOfMeshes() {
-			totalNumVertices += mesh.numberOfMeshVertices(Int32(i))
+			totalNumVertices += mesh.number(ofMeshVertices: Int32(i))
 		}
 
 		let sampleStep = Int(max(1, totalNumVertices / 1000))
@@ -398,11 +398,11 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 		var volumeCenter = GLKVector3Make(0, 0,0)
 
 		for i in 0..<mesh.numberOfMeshes() {
-			let numVertices = Int(mesh.numberOfMeshVertices(i))
+			let numVertices = Int(mesh.number(ofMeshVertices: i))
 			let vertex = mesh.meshVertices(Int32(i))
 
-			for j in 0.stride(to: numVertices, by: sampleStep) {
-				volumeCenter = GLKVector3Add(volumeCenter, vertex[Int(j)])
+            for j in stride(from: 0, to: numVertices, by: sampleStep) {
+				volumeCenter = GLKVector3Add(volumeCenter, (vertex?[Int(j)])!)
 				sampleCount += 1
 			}
 		}
@@ -415,25 +415,25 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 
 		meshViewController.resetMeshCenter(volumeCenter)
         meshViewController.delegate = self
-		presentViewController(meshViewController!, animated: true, completion: nil)
+		present(meshViewController!, animated: true, completion: nil)
 	}
 
 	func enterCubePlacementState() {
 
 		// Switch to the Scan button.
-		scanButton.hidden = false
-		doneButton.hidden = true
-		resetButton.hidden = true
+		scanButton.isHidden = false
+		doneButton.isHidden = true
+		resetButton.isHidden = true
 
 		// We'll enable the button only after we get some initial pose.
-		scanButton.hidden = false
+		scanButton.isHidden = false
 
 		// Cannot be lost in cube placement mode.
-		trackingLostLabel.hidden = true
+		trackingLostLabel.isHidden = true
 
 		setColorCameraParametersForInit()
 
-		_slamState.scannerState = .CubePlacement
+		_slamState.scannerState = .cubePlacement
 
 		// Restore dynamic options UI state, as we may be coming back from scanning state, where they were all disabled.
 		syncUIfromDynamicOptions()
@@ -450,9 +450,9 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 		}
 
 		// Switch to the Done button.
-		scanButton.hidden = true
-		doneButton.hidden = false
-		resetButton.hidden = false
+		scanButton.isHidden = true
+		doneButton.isHidden = false
+		resetButton.isHidden = false
 
 		// Prepare the mapper for the new scan.
 		setupMapper()
@@ -462,13 +462,13 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 		// We will lock exposure during scanning to ensure better coloring.
 		setColorCameraParametersForScanning()
 
-		_slamState.scannerState = .Scanning
+		_slamState.scannerState = .scanning
 
 		// Temporarily disable options while we're scanning.
-		enableNewTrackerSwitch.enabled = false
-		enableHighResolutionColorSwitch.enabled = false
-		enableNewMapperSwitch.enabled = false
-		enableHighResMappingSwitch.enabled = false
+		enableNewTrackerSwitch.isEnabled = false
+		enableHighResolutionColorSwitch.isEnabled = false
+		enableNewMapperSwitch.isEnabled = false
+		enableHighResMappingSwitch.isEnabled = false
 
 	}
 
@@ -481,9 +481,9 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 		updateAppStatusMessage()
 
 		// Hide the Scan/Done/Reset button.
-		scanButton.hidden = true
-		doneButton.hidden = true
-		resetButton.hidden = true
+		scanButton.isHidden = true
+		doneButton.isHidden = true
+		resetButton.isHidden = true
 
 		_sensorController.stopStreaming()
 
@@ -493,13 +493,13 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 
 		_slamState.mapper!.finalizeTriangleMesh()
 
-		let mesh = _slamState.scene!.lockAndGetSceneMesh()
+		let mesh = _slamState.scene!.lockAndGetMesh()
 
-		presentMeshViewer(mesh)
+		presentMeshViewer(mesh!)
 
-		_slamState.scene!.unlockSceneMesh()
+		_slamState.scene!.unlockMesh()
 
-		_slamState.scannerState = .Viewing
+		_slamState.scannerState = .viewing
 
 		updateIdleTimer()
 	}
@@ -511,7 +511,7 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 		switch _slamState.scannerState {
 
 		// Initialization and scanning need the sensor.
-		case .CubePlacement, .Scanning:
+		case .cubePlacement, .scanning:
 			return true
 
 		// Other states don't need the sensor.
@@ -533,7 +533,7 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 		_motionManager!.gyroUpdateInterval = 1.0 / fps
 
 		// Limiting the concurrent ops to 1 is a simple way to force serial execution
-		_imuQueue = NSOperationQueue.init()
+		_imuQueue = OperationQueue.init()
 		_imuQueue!.maxConcurrentOperationCount = 1
 
 		let dmHandler: CMDeviceMotionHandler = { motion, _ in
@@ -542,59 +542,59 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 				self.processDeviceMotion(motion!, error: nil)
 			}
 		}
-		_motionManager!.startDeviceMotionUpdatesToQueue(_imuQueue!, withHandler: dmHandler)
+		_motionManager!.startDeviceMotionUpdates(to: _imuQueue!, withHandler: dmHandler)
 	}
 
-	func processDeviceMotion(motion: CMDeviceMotion, error: NSError?) {
+	func processDeviceMotion(_ motion: CMDeviceMotion, error: NSError?) {
 
-		if _slamState.scannerState == .CubePlacement {
+		if _slamState.scannerState == .cubePlacement {
 
 			// Update our gravity vector, it will be used by the cube placement initializer.
 			_lastGravity = GLKVector3Make(Float(motion.gravity.x), Float(motion.gravity.y), Float(motion.gravity.z))
 		}
 
-		if _slamState.scannerState == .CubePlacement || _slamState.scannerState == .Scanning {
+		if _slamState.scannerState == .cubePlacement || _slamState.scannerState == .scanning {
 
 			if _slamState.tracker != nil {
 				// The tracker is more robust to fast moves if we feed it with motion data.
-				_slamState.tracker!.updateCameraPoseWithMotion(motion)
+				_slamState.tracker!.updateCameraPose(with: motion)
 			}
 		}
 	}
 
 	//MARK: - UI Callbacks
 
-    @IBAction func calibrationButtonClicked(button: UIButton) {
+    @IBAction func calibrationButtonClicked(_ button: UIButton) {
 
         STSensorController.launchCalibratorAppOrGoToAppStore()
     }
 
-    @IBAction func instructionButtonClicked(button: UIButton) {
+    @IBAction func instructionButtonClicked(_ button: UIButton) {
 
-        let defaults = NSUserDefaults.standardUserDefaults()
-        defaults.setBool(true, forKey: "instructionOverlay")
+        let defaults = UserDefaults.standard
+        defaults.set(true, forKey: "instructionOverlay")
 
-        instructionOverlay.hidden = true
+        instructionOverlay.isHidden = true
     }
 
-	@IBAction func newTrackerSwitchChanged(sender: UISwitch) {
+	@IBAction func newTrackerSwitchChanged(_ sender: UISwitch) {
 
 
-		_dynamicOptions.newTrackerIsOn = enableNewTrackerSwitch.on
+		_dynamicOptions.newTrackerIsOn = enableNewTrackerSwitch.isOn
 
 		onSLAMOptionsChanged()
 	}
 
-	@IBAction func highResolutionColorSwitchChanged(sender: UISwitch) {
+	@IBAction func highResolutionColorSwitchChanged(_ sender: UISwitch) {
 
-		_dynamicOptions.highResColoring = self.enableHighResolutionColorSwitch.on
+		_dynamicOptions.highResColoring = self.enableHighResolutionColorSwitch.isOn
 
 		if (avCaptureSession != nil) {
 
 			stopColorCamera()
 
 			// The dynamic option must be updated before the camera is restarted.
-			_dynamicOptions.highResColoring = self.enableHighResolutionColorSwitch.on
+			_dynamicOptions.highResColoring = self.enableHighResolutionColorSwitch.isOn
 
 			if _useColorCamera {
 				startColorCamera()
@@ -607,15 +607,15 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 	}
 
 
-	@IBAction func newMapperSwitchChanged(sender: UISwitch) {
+	@IBAction func newMapperSwitchChanged(_ sender: UISwitch) {
 
-		_dynamicOptions.newMapperIsOn = self.enableNewMapperSwitch.on
+		_dynamicOptions.newMapperIsOn = self.enableNewMapperSwitch.isOn
 		onSLAMOptionsChanged() // will call UI sync
 	}
 
-	@IBAction func highResMappingSwitchChanged(sender: UISwitch) {
+	@IBAction func highResMappingSwitchChanged(_ sender: UISwitch) {
 
-		_dynamicOptions.highResMapping = self.enableHighResMappingSwitch.on
+		_dynamicOptions.highResMapping = self.enableHighResMappingSwitch.isOn
 		onSLAMOptionsChanged() // will call UI sync
 	}
 
@@ -633,7 +633,7 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 		adjustVolumeSize( volumeSize: _slamState.volumeSizeInMeters)
 	}
 
-	func adjustVolumeSize(volumeSize volumeSize: GLKVector3) {
+	func adjustVolumeSize(volumeSize: GLKVector3) {
 
 		// Make sure the volume size remains between 10 centimeters and 3 meters.
 		let x = keepInRange(volumeSize.x, minValue: 0.1, maxValue: 3)
@@ -646,15 +646,15 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 		_display!.cubeRenderer!.adjustCubeSize(_slamState.volumeSizeInMeters)
 	}
 
-	@IBAction func scanButtonPressed(sender: UIButton) {
+	@IBAction func scanButtonPressed(_ sender: UIButton) {
         // hide windows while scanning
-        trackerShowingScanStart =  !enableNewTrackerView.hidden
+        trackerShowingScanStart =  !enableNewTrackerView.isHidden
 
         toggleTracker(false)
         enterScanningState()
 	}
 
-	@IBAction func resetButtonPressed(sender: UIButton) {
+	@IBAction func resetButtonPressed(_ sender: UIButton) {
         // restore window after scanning
         if trackerShowingScanStart {
             toggleTracker(true)
@@ -663,7 +663,7 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 		resetSLAM()
 	}
 
-	@IBAction func doneButtonPressed(sender: UIButton) {
+	@IBAction func doneButtonPressed(_ sender: UIButton) {
         // restore window after scanning
         if trackerShowingScanStart {
             toggleTracker(true)
@@ -677,35 +677,35 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 		if isStructureConnectedAndCharged() && currentStateNeedsSensor() {
 
 			// Do not let the application sleep if we are currently using the sensor data.
-			UIApplication.sharedApplication().idleTimerDisabled = true
+			UIApplication.shared.isIdleTimerDisabled = true
 		} else {
 			// Let the application sleep if we are only viewing the mesh or if no sensors are connected.
-			UIApplication.sharedApplication().idleTimerDisabled = false
+			UIApplication.shared.isIdleTimerDisabled = false
 		}
 	}
 
-	func showTrackingMessage(message: String) {
+	func showTrackingMessage(_ message: String) {
 
 		trackingLostLabel.text = message
-		trackingLostLabel.hidden = false
+		trackingLostLabel.isHidden = false
 	}
 
 	func hideTrackingErrorMessage() {
 
-		trackingLostLabel.hidden = true
+		trackingLostLabel.isHidden = true
 	}
 
-	func showAppStatusMessage(msg: String) {
+	func showAppStatusMessage(_ msg: String) {
 
 		_appStatus.needsDisplayOfStatusMessage = true
 		view.layer.removeAllAnimations()
 
 		appStatusMessageLabel.text = msg
-		appStatusMessageLabel.hidden = false
+		appStatusMessageLabel.isHidden = false
 
 		// Progressively show the message label.
-		view!.userInteractionEnabled = false
-		UIView.animateWithDuration(0.5, animations: {
+		view!.isUserInteractionEnabled = false
+		UIView.animate(withDuration: 0.5, animations: {
 			self.appStatusMessageLabel.alpha = 1.0
 		})
 	}
@@ -719,7 +719,7 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 		_appStatus.needsDisplayOfStatusMessage = false
 		view.layer.removeAllAnimations()
 
-		UIView.animateWithDuration(0.5, animations: {
+		UIView.animate(withDuration: 0.5, animations: {
 			self.appStatusMessageLabel.alpha = 0
 			}, completion: { _ in
 				// If nobody called showAppStatusMessage before the end of the animation, do not hide it.
@@ -727,8 +727,8 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 
 					// Could be nil if the self is released before the callback happens.
 					if self.view != nil {
-						self.appStatusMessageLabel.hidden = true
-						self.view.userInteractionEnabled = true
+						self.appStatusMessageLabel.isHidden = true
+						self.view.isUserInteractionEnabled = true
 					}
 				}
 		})
@@ -744,15 +744,15 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 		// First show sensor issues, if any.
 		switch _appStatus.sensorStatus {
 
-		case .NeedsUserToConnect:
+		case .needsUserToConnect:
 			showAppStatusMessage(_appStatus.pleaseConnectSensorMessage)
 			return
 
-		case .NeedsUserToCharge:
+		case .needsUserToCharge:
 			showAppStatusMessage(_appStatus.pleaseChargeSensorMessage)
 			return
 
-		case .Ok:
+		case .ok:
 			break
 		}
 
@@ -766,15 +766,15 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 		hideAppStatusMessage()
 	}
 
-	@IBAction func pinchGesture(sender: UIPinchGestureRecognizer) {
+	@IBAction func pinchGesture(_ sender: UIPinchGestureRecognizer) {
 
-		if sender.state == .Began {
-			if _slamState.scannerState == .CubePlacement {
+		if sender.state == .began {
+			if _slamState.scannerState == .cubePlacement {
 				_volumeScale.initialPinchScale = _volumeScale.currentScale / sender.scale
 			}
-		} else if sender.state == .Changed {
+		} else if sender.state == .changed {
 
-			if _slamState.scannerState == .CubePlacement {
+			if _slamState.scannerState == .cubePlacement {
 
 				// In some special conditions the gesture recognizer can send a zero initial scale.
 				if !_volumeScale.initialPinchScale.isNaN {
@@ -792,32 +792,32 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 		}
 	}
 
-    @IBAction func toggleNewTrackerVisible(sender: UILongPressGestureRecognizer) {
+    @IBAction func toggleNewTrackerVisible(_ sender: UILongPressGestureRecognizer) {
 
-        if (sender.state == .Began) {
+        if (sender.state == .began) {
 
-            toggleTracker(enableNewTrackerView.hidden)
+            toggleTracker(enableNewTrackerView.isHidden)
         }
     }
 
-    func toggleTracker(show: Bool) {
+    func toggleTracker(_ show: Bool) {
 
         if show {
             // set alpha to 0.9
             enableNewTrackerView.alpha = 0
-            enableNewTrackerView.hidden = false
-            UIView.animateWithDuration(0.3, delay: 0.0, options: .CurveEaseOut, animations: { () -> Void in
+            enableNewTrackerView.isHidden = false
+            UIView.animate(withDuration: 0.3, delay: 0.0, options: .curveEaseOut, animations: { () -> Void in
                 self.enableNewTrackerView.alpha = 0.9
                 }, completion: { (finished: Bool) -> Void in
-                    self.enableNewTrackerView.hidden = false
+                    self.enableNewTrackerView.isHidden = false
             })
         } else {
             // set alpha to 0.0
-            UIView.animateWithDuration(1.0, delay: 0.0, options: .CurveEaseOut, animations: { () -> Void in
+            UIView.animate(withDuration: 1.0, delay: 0.0, options: .curveEaseOut, animations: { () -> Void in
                 self.enableNewTrackerView.alpha = 0.0
 
                 }, completion: { (finished: Bool) -> Void in
-                    self.enableNewTrackerView.hidden = true
+                    self.enableNewTrackerView.isHidden = true
             })
         }
     }
@@ -849,21 +849,21 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 		resetSLAM()
 	}
 
-    func backgroundTask(sender: STBackgroundTask!, didUpdateProgress progress: Double) {
+    func backgroundTask(_ sender: STBackgroundTask!, didUpdateProgress progress: Double) {
 
 		if sender == _naiveColorizeTask {
-            dispatch_async(dispatch_get_main_queue(), {
+            DispatchQueue.main.async(execute: {
 				self.meshViewController.showMeshViewerMessage(String.init(format: "Processing: % 3d%%", Int(progress*20)))
             })
 		} else if sender == _enhancedColorizeTask {
 
-            dispatch_async(dispatch_get_main_queue(), {
+            DispatchQueue.main.async(execute: {
             self.meshViewController.showMeshViewerMessage(String.init(format: "Processing: % 3d%%", Int(progress*80)+20))
             })
 		}
 	}
 
-	func meshViewDidRequestColorizing(mesh: STMesh, previewCompletionHandler: () -> Void, enhancedCompletionHandler: () -> Void) -> Bool {
+	func meshViewDidRequestColorizing(_ mesh: STMesh, previewCompletionHandler: @escaping () -> Void, enhancedCompletionHandler: @escaping () -> Void) -> Bool {
 
 		if _naiveColorizeTask != nil { // already one running?
 
@@ -871,14 +871,14 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 			return false
 		}
 
-		_naiveColorizeTask = try! STColorizer.newColorizeTaskWithMesh(mesh,
+		_naiveColorizeTask = try! STColorizer.newColorizeTask(with: mesh,
 		                   scene: _slamState.scene,
 		                   keyframes: _slamState.keyFrameManager!.getKeyFrames(),
 		                   completionHandler: { error in
 							if error != nil {
-                                NSLog("Error during colorizing: %@", error.localizedDescription)
+                                NSLog("Error during colorizing: \(error?.localizedDescription)")
                             } else {
-                                dispatch_async(dispatch_get_main_queue(), {
+                                DispatchQueue.main.async(execute: {
                                     previewCompletionHandler()
                                     self.meshViewController.mesh = mesh
                                     self.performEnhancedColorize(mesh, enhancedCompletionHandler:enhancedCompletionHandler)
@@ -886,7 +886,7 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
                                     self._naiveColorizeTask = nil
                                 }
 			},
-		                   options: [kSTColorizerTypeKey : STColorizerType.PerVertex.rawValue,
+		                   options: [kSTColorizerTypeKey : STColorizerType.perVertex.rawValue,
             kSTColorizerPrioritizeFirstFrameColorKey: _options.prioritizeFirstFrameColor]
 		)
 
@@ -904,13 +904,13 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 		return false
 	}
 
-	func performEnhancedColorize(mesh: STMesh, enhancedCompletionHandler: () -> Void) {
+	func performEnhancedColorize(_ mesh: STMesh, enhancedCompletionHandler: @escaping () -> Void) {
 
-        _enhancedColorizeTask = try! STColorizer.newColorizeTaskWithMesh(mesh, scene: _slamState.scene, keyframes: _slamState.keyFrameManager!.getKeyFrames(), completionHandler: {error in
+        _enhancedColorizeTask = try! STColorizer.newColorizeTask(with: mesh, scene: _slamState.scene, keyframes: _slamState.keyFrameManager!.getKeyFrames(), completionHandler: {error in
             if error != nil {
                 NSLog("Error during colorizing: %@", error!.localizedDescription)
             } else {
-                dispatch_async(dispatch_get_main_queue(), {
+                DispatchQueue.main.async(execute: {
                     enhancedCompletionHandler()
 
 					self.meshViewController.mesh = mesh
@@ -918,7 +918,7 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 
                 self._enhancedColorizeTask = nil
             }
-            }, options: [kSTColorizerTypeKey : STColorizerType.TextureMapForObject.rawValue, kSTColorizerPrioritizeFirstFrameColorKey: _options.prioritizeFirstFrameColor, kSTColorizerQualityKey: _options.colorizerQuality.rawValue, kSTColorizerTargetNumberOfFacesKey: _options.colorizerTargetNumFaces])
+            }, options: [kSTColorizerTypeKey : STColorizerType.textureMapForObject.rawValue, kSTColorizerPrioritizeFirstFrameColorKey: _options.prioritizeFirstFrameColor, kSTColorizerQualityKey: _options.colorizerQuality.rawValue, kSTColorizerTargetNumberOfFacesKey: _options.colorizerTargetNumFaces])
 
 		if _enhancedColorizeTask != nil {
 
@@ -935,7 +935,7 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 	func respondToMemoryWarning() {
 		NSLog("respondToMemoryWarning")
 		switch _slamState.scannerState {
-		case .Viewing:
+		case .viewing:
 			// If we are running a colorizing task, abort it
 			if _enhancedColorizeTask != nil && !_slamState.showingMemoryWarning {
 
@@ -951,11 +951,11 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 				let alertCtrl = UIAlertController(
 					title: "Memory Low",
 					message: "Colorizing was canceled.",
-					preferredStyle: .Alert)
+					preferredStyle: .alert)
 
 				let okAction = UIAlertAction(
 					title: "OK",
-					style: .Default,
+					style: .default,
 					handler: { _ in
 						self._slamState.showingMemoryWarning = false
 				})
@@ -963,10 +963,10 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 				alertCtrl.addAction(okAction)
 
 				// show the alert in the meshViewController
-				self.meshViewController.presentViewController(alertCtrl, animated: true, completion: nil)
+				self.meshViewController.present(alertCtrl, animated: true, completion: nil)
 			}
 
-		case .Scanning:
+		case .scanning:
 
 			if !_slamState.showingMemoryWarning {
 
@@ -975,10 +975,10 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 				let alertCtrl = UIAlertController(
 					title: "Memory Low",
 					message: "Scanning will be stopped to avoid loss.",
-					preferredStyle: .Alert)
+					preferredStyle: .alert)
 
 				let okAction = UIAlertAction(
-					title: "OK", style: .Default,
+					title: "OK", style: .default,
 					handler: { _ in
 						self._slamState.showingMemoryWarning = false
 						self.enterViewingState()
@@ -987,7 +987,7 @@ class ViewController: UIViewController, STBackgroundTaskDelegate, MeshViewDelega
 				alertCtrl.addAction(okAction)
 
 				// show the alert
-				presentViewController(alertCtrl, animated: true, completion: nil)
+				present(alertCtrl, animated: true, completion: nil)
 			}
 
 		default:

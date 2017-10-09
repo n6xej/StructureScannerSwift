@@ -374,7 +374,7 @@ Please Realign or Press Reset.</string>
                         <action selector="pinchScaleGesture:" destination="oze-DG-WHp" id="Z5O-Wn-96O"/>
                     </connections>
                 </pinchGestureRecognizer>
-                <tapGestureRecognizer id="xht-tT-atM">
+                <tapGestureRecognizer cancelsTouchesInView="NO" id="xht-tT-atM">
                     <connections>
                         <action selector="tapGesture:" destination="oze-DG-WHp" id="UTp-7h-FnO"/>
                     </connections>
