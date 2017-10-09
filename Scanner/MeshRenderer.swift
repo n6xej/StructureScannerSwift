@@ -14,10 +14,10 @@ class MeshRenderer: NSObject {
 
 	enum RenderingMode: Int {
 
-        case XRay = 0
-        case PerVertexColor
-        case Textured
-        case LightedGray
+        case xRay = 0
+        case perVertexColor
+        case textured
+        case lightedGray
     }
 
     struct PrivateData {
@@ -28,8 +28,8 @@ class MeshRenderer: NSObject {
         var yCbCrTextureShader: YCbCrTextureShader?
 
         var numUploadedMeshes: Int = 0
-		var numTriangleIndices = [Int](count: MAX_MESHES, repeatedValue: 0)
-        var numLinesIndices = [Int](count: MAX_MESHES, repeatedValue: 0)
+		var numTriangleIndices = [Int](repeating: 0, count: MAX_MESHES)
+        var numLinesIndices = [Int](repeating: 0, count: MAX_MESHES)
 
         var hasPerVertexColor: Bool = false
         var hasPerVertexNormals: Bool = false
@@ -37,12 +37,12 @@ class MeshRenderer: NSObject {
         var hasTexture: Bool = false
 
         // Vertex buffer objects.
-        var vertexVbo = [GLuint](count: MAX_MESHES, repeatedValue: 0)
-        var normalsVbo = [GLuint](count: MAX_MESHES, repeatedValue: 0)
-        var colorsVbo = [GLuint](count: MAX_MESHES, repeatedValue: 0)
-        var texcoordsVbo = [GLuint](count: MAX_MESHES, repeatedValue: 0)
-        var facesVbo = [GLuint](count: MAX_MESHES, repeatedValue: 0)
-        var linesVbo = [GLuint](count: MAX_MESHES, repeatedValue: 0)
+        var vertexVbo = [GLuint](repeating: 0, count: MAX_MESHES)
+        var normalsVbo = [GLuint](repeating: 0, count: MAX_MESHES)
+        var colorsVbo = [GLuint](repeating: 0, count: MAX_MESHES)
+        var texcoordsVbo = [GLuint](repeating: 0, count: MAX_MESHES)
+        var facesVbo = [GLuint](repeating: 0, count: MAX_MESHES)
+        var linesVbo = [GLuint](repeating: 0, count: MAX_MESHES)
 
         // OpenGL Texture reference for y and chroma images.
         var lumaTexture: CVOpenGLESTexture? = nil
@@ -55,7 +55,7 @@ class MeshRenderer: NSObject {
         var textureUnit: GLenum = GLenum(GL_TEXTURE3)
 
         // Current render mode.
-        var currentRenderingMode: RenderingMode = .LightedGray
+        var currentRenderingMode: RenderingMode = .lightedGray
 
 		internal init() {
 
@@ -74,7 +74,7 @@ class MeshRenderer: NSObject {
 
 	}
 
-   func initializeGL(defaultTextureUnit: GLenum = GLenum(GL_TEXTURE3)) {
+   func initializeGL(_ defaultTextureUnit: GLenum = GLenum(GL_TEXTURE3)) {
 
         d!.textureUnit = defaultTextureUnit
         glGenBuffers( GLsizei(MAX_MESHES), &d!.vertexVbo)
@@ -134,7 +134,7 @@ class MeshRenderer: NSObject {
 		self.d = nil
 	}
 
-    func MeshRendererDestructor(d: PrivateData) {
+    func MeshRendererDestructor(_ d: PrivateData) {
 
         if d.vertexVbo[0] != 0 {
             glDeleteBuffers( GLsizei(MAX_MESHES), d.vertexVbo)
@@ -166,7 +166,7 @@ class MeshRenderer: NSObject {
 
    func clear() {
 
-        if d!.currentRenderingMode == RenderingMode.PerVertexColor || d!.currentRenderingMode == RenderingMode.Textured {
+        if d!.currentRenderingMode == RenderingMode.perVertexColor || d!.currentRenderingMode == RenderingMode.textured {
             glClearColor(0.9, 0.9, 0.9, 1)
         } else {
             glClearColor(0.1, 0.1, 0.1, 1)
@@ -177,7 +177,7 @@ class MeshRenderer: NSObject {
         glClear( GLenum(GL_COLOR_BUFFER_BIT) | GLenum(GL_DEPTH_BUFFER_BIT))
     }
 
-   func setRenderingMode(mode: RenderingMode) {
+   func setRenderingMode(_ mode: RenderingMode) {
         d!.currentRenderingMode = mode
     }
 
@@ -186,7 +186,7 @@ class MeshRenderer: NSObject {
     }
 
 
-    func uploadMesh(mesh: STMesh) {
+    func uploadMesh(_ mesh: STMesh) {
 
         let numUploads: Int = min(Int(mesh.numberOfMeshes()), Int(MAX_MESHES))
         d!.numUploadedMeshes = min(Int(mesh.numberOfMeshes()), Int(MAX_MESHES))
@@ -203,49 +203,49 @@ class MeshRenderer: NSObject {
 
         for meshIndex in 0..<numUploads {
 
-            let numVertices: Int = Int(mesh.numberOfMeshVertices(Int32(meshIndex)))
+            let numVertices: Int = Int(mesh.number(ofMeshVertices: Int32(meshIndex)))
 
             glBindBuffer( GLenum(GL_ARRAY_BUFFER), d!.vertexVbo[meshIndex])
-            glBufferData( GLenum(GL_ARRAY_BUFFER), numVertices * sizeof(GLKVector3), mesh.meshVertices(Int32(meshIndex)), GLenum(GL_STATIC_DRAW))
+            glBufferData( GLenum(GL_ARRAY_BUFFER), numVertices * MemoryLayout<GLKVector3>.size, mesh.meshVertices(Int32(meshIndex)), GLenum(GL_STATIC_DRAW))
 
             if d!.hasPerVertexNormals {
 
                 glBindBuffer( GLenum(GL_ARRAY_BUFFER), d!.normalsVbo[meshIndex])
-                glBufferData( GLenum(GL_ARRAY_BUFFER), numVertices * sizeof(GLKVector3), mesh.meshPerVertexNormals(Int32(meshIndex)), GLenum(GL_STATIC_DRAW))
+                glBufferData( GLenum(GL_ARRAY_BUFFER), numVertices * MemoryLayout<GLKVector3>.size, mesh.meshPerVertexNormals(Int32(meshIndex)), GLenum(GL_STATIC_DRAW))
             }
 
             if d!.hasPerVertexColor {
 
                 glBindBuffer( GLenum(GL_ARRAY_BUFFER), d!.colorsVbo[meshIndex])
-                glBufferData( GLenum(GL_ARRAY_BUFFER), numVertices * sizeof(GLKVector3), mesh.meshPerVertexColors(Int32(meshIndex)), GLenum(GL_STATIC_DRAW))
+                glBufferData( GLenum(GL_ARRAY_BUFFER), numVertices * MemoryLayout<GLKVector3>.size, mesh.meshPerVertexColors(Int32(meshIndex)), GLenum(GL_STATIC_DRAW))
             }
 
             if d!.hasPerVertexUV {
 
                 glBindBuffer( GLenum(GL_ARRAY_BUFFER), d!.texcoordsVbo[meshIndex])
-                glBufferData( GLenum(GL_ARRAY_BUFFER), numVertices * sizeof(GLKVector2), mesh.meshPerVertexUVTextureCoords(Int32(meshIndex)), GLenum(GL_STATIC_DRAW))
+                glBufferData( GLenum(GL_ARRAY_BUFFER), numVertices * MemoryLayout<GLKVector2>.size, mesh.meshPerVertexUVTextureCoords(Int32(meshIndex)), GLenum(GL_STATIC_DRAW))
             }
 
             glBindBuffer( GLenum(GL_ELEMENT_ARRAY_BUFFER), d!.facesVbo[meshIndex])
-            glBufferData( GLenum(GL_ELEMENT_ARRAY_BUFFER), Int(mesh.numberOfMeshFaces(Int32(meshIndex))) * sizeof(UInt16) * 3, mesh.meshFaces(Int32(meshIndex)), GLenum(GL_STATIC_DRAW))
+            glBufferData( GLenum(GL_ELEMENT_ARRAY_BUFFER), Int(mesh.number(ofMeshFaces: Int32(meshIndex))) * MemoryLayout<UInt16>.size * 3, mesh.meshFaces(Int32(meshIndex)), GLenum(GL_STATIC_DRAW))
 
             glBindBuffer( GLenum(GL_ELEMENT_ARRAY_BUFFER), d!.linesVbo[meshIndex])
-            glBufferData( GLenum(GL_ELEMENT_ARRAY_BUFFER), Int(mesh.numberOfMeshLines(Int32(meshIndex))) * sizeof(UInt16) * 2, mesh.meshLines(Int32(meshIndex)), GLenum(GL_STATIC_DRAW))
+            glBufferData( GLenum(GL_ELEMENT_ARRAY_BUFFER), Int(mesh.number(ofMeshLines: Int32(meshIndex))) * MemoryLayout<UInt16>.size * 2, mesh.meshLines(Int32(meshIndex)), GLenum(GL_STATIC_DRAW))
 
             glBindBuffer( GLenum(GL_ELEMENT_ARRAY_BUFFER), 0)
             glBindBuffer( GLenum(GL_ARRAY_BUFFER), 0)
 
-            d!.numTriangleIndices[meshIndex] = Int(mesh.numberOfMeshFaces(Int32(meshIndex)) * 3)
-            d!.numLinesIndices[meshIndex] = Int(mesh.numberOfMeshLines(Int32(meshIndex)) * 2)
+            d!.numTriangleIndices[meshIndex] = Int(mesh.number(ofMeshFaces: Int32(meshIndex)) * 3)
+            d!.numLinesIndices[meshIndex] = Int(mesh.number(ofMeshLines: Int32(meshIndex)) * 2)
         }
     }
 
-    func uploadTexture(pixelBuffer: CVImageBuffer) {
+    func uploadTexture(_ pixelBuffer: CVImageBuffer) {
 
         let width = Int(CVPixelBufferGetWidth(pixelBuffer))
         let height = Int(CVPixelBufferGetHeight(pixelBuffer))
 
-        let context: EAGLContext? = EAGLContext.currentContext()
+        let context: EAGLContext? = EAGLContext.current()
         assert(context != nil)
 
         releaseGLTextures()
@@ -297,69 +297,69 @@ class MeshRenderer: NSObject {
         glBindTexture( GLenum(GL_TEXTURE_2D), 0)
     }
 
-    func enableVertexBuffer(meshIndex: Int) {
+    func enableVertexBuffer(_ meshIndex: Int) {
 
         glBindBuffer( GLenum(GL_ARRAY_BUFFER), d!.vertexVbo[meshIndex])
-        glEnableVertexAttribArray(CustomShader.Attrib.Vertex.rawValue)
-        glVertexAttribPointer(CustomShader.Attrib.Vertex.rawValue, 3, GLenum(GL_FLOAT), GLboolean(GL_FALSE), 0, nil)
+        glEnableVertexAttribArray(CustomShader.Attrib.vertex.rawValue)
+        glVertexAttribPointer(CustomShader.Attrib.vertex.rawValue, 3, GLenum(GL_FLOAT), GLboolean(GL_FALSE), 0, nil)
     }
 
-    func disableVertexBuffer(meshIndex: Int) {
+    func disableVertexBuffer(_ meshIndex: Int) {
 
         glBindBuffer( GLenum(GL_ARRAY_BUFFER), d!.vertexVbo[meshIndex])
-        glDisableVertexAttribArray(CustomShader.Attrib.Vertex.rawValue)
+        glDisableVertexAttribArray(CustomShader.Attrib.vertex.rawValue)
     }
 
-    func enableNormalBuffer (meshIndex: Int) {
+    func enableNormalBuffer (_ meshIndex: Int) {
 
         glBindBuffer( GLenum(GL_ARRAY_BUFFER), d!.normalsVbo[meshIndex])
-        glEnableVertexAttribArray(CustomShader.Attrib.Normal.rawValue)
-        glVertexAttribPointer(CustomShader.Attrib.Normal.rawValue, 3, GLenum(GL_FLOAT), GLboolean(GL_FALSE), 0, nil)
+        glEnableVertexAttribArray(CustomShader.Attrib.normal.rawValue)
+        glVertexAttribPointer(CustomShader.Attrib.normal.rawValue, 3, GLenum(GL_FLOAT), GLboolean(GL_FALSE), 0, nil)
     }
 
-    func disableNormalBuffer(meshIndex: Int) {
+    func disableNormalBuffer(_ meshIndex: Int) {
 
         glBindBuffer( GLenum(GL_ARRAY_BUFFER), d!.normalsVbo[meshIndex])
-        glDisableVertexAttribArray(CustomShader.Attrib.Normal.rawValue)
+        glDisableVertexAttribArray(CustomShader.Attrib.normal.rawValue)
     }
 
-    func enableVertexColorBuffer (meshIndex: Int) {
+    func enableVertexColorBuffer (_ meshIndex: Int) {
 
         glBindBuffer( GLenum(GL_ARRAY_BUFFER), d!.colorsVbo[meshIndex])
-        glEnableVertexAttribArray(CustomShader.Attrib.Color.rawValue)
-        glVertexAttribPointer(CustomShader.Attrib.Color.rawValue, 3, GLenum(GL_FLOAT), GLboolean(GL_FALSE), 0, nil)
+        glEnableVertexAttribArray(CustomShader.Attrib.color.rawValue)
+        glVertexAttribPointer(CustomShader.Attrib.color.rawValue, 3, GLenum(GL_FLOAT), GLboolean(GL_FALSE), 0, nil)
     }
 
-    func disableVertexColorBuffer(meshIndex: Int) {
+    func disableVertexColorBuffer(_ meshIndex: Int) {
 
         glBindBuffer( GLenum(GL_ARRAY_BUFFER), d!.colorsVbo[meshIndex])
-        glDisableVertexAttribArray(CustomShader.Attrib.Color.rawValue)
+        glDisableVertexAttribArray(CustomShader.Attrib.color.rawValue)
     }
 
-    func enableVertexTexcoordsBuffer (meshIndex: Int) {
+    func enableVertexTexcoordsBuffer (_ meshIndex: Int) {
 
         glBindBuffer( GLenum(GL_ARRAY_BUFFER), d!.texcoordsVbo[meshIndex])
-        glEnableVertexAttribArray(CustomShader.Attrib.TextCoord.rawValue)
-        glVertexAttribPointer(CustomShader.Attrib.TextCoord.rawValue, 2, GLenum(GL_FLOAT), GLboolean(GL_FALSE), 0, nil)
+        glEnableVertexAttribArray(CustomShader.Attrib.textCoord.rawValue)
+        glVertexAttribPointer(CustomShader.Attrib.textCoord.rawValue, 2, GLenum(GL_FLOAT), GLboolean(GL_FALSE), 0, nil)
     }
 
-    func disableVertexTexcoordBuffer(meshIndex: Int) {
+    func disableVertexTexcoordBuffer(_ meshIndex: Int) {
 
         glBindBuffer( GLenum(GL_ARRAY_BUFFER), d!.texcoordsVbo[meshIndex])
-        glDisableVertexAttribArray(CustomShader.Attrib.TextCoord.rawValue)
+        glDisableVertexAttribArray(CustomShader.Attrib.textCoord.rawValue)
     }
 
-    func enableLinesElementBuffer (meshIndex: Int) {
+    func enableLinesElementBuffer (_ meshIndex: Int) {
 
         glBindBuffer( GLenum(GL_ELEMENT_ARRAY_BUFFER), d!.linesVbo[meshIndex])
         glLineWidth(1.0)
     }
 
-    func enableTrianglesElementBuffer (meshIndex: Int) {
+    func enableTrianglesElementBuffer (_ meshIndex: Int) {
         glBindBuffer( GLenum(GL_ELEMENT_ARRAY_BUFFER), d!.facesVbo[meshIndex])
     }
 
-    func renderPartialMesh (meshIndex: Int) {
+    func renderPartialMesh (_ meshIndex: Int) {
 		//nothing uploaded. return test
         if d!.numTriangleIndices[meshIndex] <= 0 {
             return
@@ -367,7 +367,7 @@ class MeshRenderer: NSObject {
 
         switch d!.currentRenderingMode {
 
-        case RenderingMode.XRay:
+        case RenderingMode.xRay:
 
             enableLinesElementBuffer(meshIndex)
             enableVertexBuffer(meshIndex)
@@ -376,7 +376,7 @@ class MeshRenderer: NSObject {
             disableNormalBuffer(meshIndex)
             disableVertexBuffer(meshIndex)
 
-        case RenderingMode.LightedGray:
+        case RenderingMode.lightedGray:
 
             enableTrianglesElementBuffer(meshIndex)
             enableVertexBuffer(meshIndex)
@@ -385,7 +385,7 @@ class MeshRenderer: NSObject {
             disableNormalBuffer(meshIndex)
             disableVertexBuffer(meshIndex)
 
-        case RenderingMode.PerVertexColor:
+        case RenderingMode.perVertexColor:
 
             enableTrianglesElementBuffer(meshIndex)
             enableVertexBuffer(meshIndex)
@@ -396,7 +396,7 @@ class MeshRenderer: NSObject {
             disableNormalBuffer(meshIndex)
             disableVertexBuffer(meshIndex)
 
-        case RenderingMode.Textured:
+        case RenderingMode.textured:
 
             enableTrianglesElementBuffer(meshIndex)
             enableVertexBuffer(meshIndex)
@@ -410,28 +410,28 @@ class MeshRenderer: NSObject {
         glBindBuffer( GLenum(GL_ARRAY_BUFFER), 0)
     }
 
- func render(projectionMatrix: UnsafePointer<GLfloat>, modelViewMatrix: UnsafePointer<GLfloat>) {
+ func render(_ projectionMatrix: UnsafePointer<GLfloat>, modelViewMatrix: UnsafePointer<GLfloat>) {
 
-        if d!.currentRenderingMode == RenderingMode.PerVertexColor && !d!.hasPerVertexColor && d!.hasTexture && d!.hasPerVertexUV {
+        if d!.currentRenderingMode == RenderingMode.perVertexColor && !d!.hasPerVertexColor && d!.hasTexture && d!.hasPerVertexUV {
 
             NSLog("Warning: The mesh has no per-vertex colors, but a texture, switching the rendering mode to Textured")
-            d!.currentRenderingMode = RenderingMode.Textured
-        } else if d!.currentRenderingMode == RenderingMode.Textured && (!d!.hasTexture || !d!.hasPerVertexUV) && d!.hasPerVertexColor {
+            d!.currentRenderingMode = RenderingMode.textured
+        } else if d!.currentRenderingMode == RenderingMode.textured && (!d!.hasTexture || !d!.hasPerVertexUV) && d!.hasPerVertexColor {
             NSLog("Warning: The mesh has no texture, but per-vertex colors, switching the rendering mode to PerVertexColor")
-            d!.currentRenderingMode = RenderingMode.PerVertexColor
+            d!.currentRenderingMode = RenderingMode.perVertexColor
         }
 
         switch d!.currentRenderingMode {
 
-        case RenderingMode.XRay:
+        case RenderingMode.xRay:
             d!.xRayShader!.enable()
             d!.xRayShader!.prepareRendering(projectionMatrix, modelView: modelViewMatrix)
 
-        case RenderingMode.LightedGray:
+        case RenderingMode.lightedGray:
             d!.lightedGrayShader!.enable()
             d!.lightedGrayShader!.prepareRendering(projectionMatrix, modelView: modelViewMatrix)
 
-        case RenderingMode.PerVertexColor:
+        case RenderingMode.perVertexColor:
             if !d!.hasPerVertexColor {
                 NSLog("Warning: the mesh has no colors, skipping rendering.")
                 return
@@ -440,7 +440,7 @@ class MeshRenderer: NSObject {
             d!.perVertexColorShader!.enable()
             d!.perVertexColorShader!.prepareRendering(projectionMatrix, modelView: modelViewMatrix)
 
-        case RenderingMode.Textured:
+        case RenderingMode.textured:
             if !d!.hasTexture || d!.lumaTexture == nil || d!.chromaTexture == nil {
                 NSLog("Warning: null textures, skipping rendering.")
                 return

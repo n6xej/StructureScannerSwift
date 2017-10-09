@@ -389,7 +389,7 @@ Try to re-align or press reset.</string>
                         <action selector="pinchScaleGesture:" destination="AlP-Dd-rCg" id="Sqp-3m-asa"/>
                     </connections>
                 </pinchGestureRecognizer>
-                <tapGestureRecognizer id="z74-Jb-vOm">
+                <tapGestureRecognizer cancelsTouchesInView="NO" id="z74-Jb-vOm">
                     <connections>
                         <action selector="tapGesture:" destination="AlP-Dd-rCg" id="DhE-uw-GDj"/>
                     </connections>

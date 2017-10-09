@@ -105,38 +105,38 @@ class ViewpointController : NSObject {
 		d!.modelViewRotationVelocity = GLKVector2Make(0, 0)
 	}
 	
-    func setCameraProjection(projRt: GLKMatrix4) {
+    func setCameraProjection(_ projRt: GLKMatrix4) {
 
         d!.referenceProjectionMatrix = projRt
         d!.cameraOrProjectionChangedSinceLastUpdate = true
     }
 
-    func setMeshCenter(center: GLKVector3) {
+    func setMeshCenter(_ center: GLKVector3) {
 
         d!.meshCenter = center
         d!.cameraOrProjectionChangedSinceLastUpdate = true
     }
 
     // Scale Gesture Control
-   internal func onPinchGestureBegan(scale: Float) {
+   internal func onPinchGestureBegan(_ scale: Float) {
 
         d!.scaleWhenPinchGestureBegan = d!.currentScale / scale
     }
 
-   internal func onPinchGestureChanged(scale: Float) {
+   internal func onPinchGestureChanged(_ scale: Float) {
 
         d!.currentScale = scale * d!.scaleWhenPinchGestureBegan
         d!.cameraOrProjectionChangedSinceLastUpdate = true
     }
 
     // 3D modelView rotation gesture control.
-   internal func onOneFingerPanBegan(touch: GLKVector2) {
+   internal func onOneFingerPanBegan(_ touch: GLKVector2) {
 
         d!.modelViewRotationWhenPanGestureBegan = d!.modelViewRotation
         d!.oneFingerPanWhenGestureBegan = touch
     }
 
-   internal func onOneFingerPanChanged(touch: GLKVector2) {
+   internal func onOneFingerPanChanged(_ touch: GLKVector2) {
 
         let distMoved = GLKVector2Subtract(touch, d!.oneFingerPanWhenGestureBegan)
         let spinDegree = GLKVector2Negate(GLKVector2DivideScalar(distMoved, 300))
@@ -148,26 +148,26 @@ class ViewpointController : NSObject {
         d!.cameraOrProjectionChangedSinceLastUpdate = true
     }
 
-    internal func onOneFingerPanEnded(vel: GLKVector2) {
+    internal func onOneFingerPanEnded(_ vel: GLKVector2) {
 
         d!.modelViewRotationVelocity = vel
         d!.lastModelViewRotationUpdateTimestamp = nowInSeconds()
     }
 
     // Screen-space translation gesture control.
-    internal func onTwoFingersPanBegan (touch: GLKVector2) {
+    internal func onTwoFingersPanBegan (_ touch: GLKVector2) {
 
         d!.twoFingersPanWhenGestureBegan = touch
         d!.meshCenterOnScreenWhenPanGestureBegan = d!.meshCenterOnScreen
     }
 
-    internal func onTwoFingersPanChanged (touch: GLKVector2) {
+    internal func onTwoFingersPanChanged (_ touch: GLKVector2) {
         
         d!.meshCenterOnScreen = GLKVector2Add(GLKVector2Subtract(touch, d!.twoFingersPanWhenGestureBegan), d!.meshCenterOnScreenWhenPanGestureBegan)
         d!.cameraOrProjectionChangedSinceLastUpdate = true
     }
     
-    internal func onTwoFingersPanEnded(vel: GLKVector2) {
+    internal func onTwoFingersPanEnded(_ vel: GLKVector2) {
     }
     
     internal func onTouchBegan() {

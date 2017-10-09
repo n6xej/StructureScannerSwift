@@ -8,53 +8,44 @@
 //
 
 
-extension NSTimer {
-	class func schedule(delay: NSTimeInterval, handler: NSTimer! -> Void) -> NSTimer {
+extension Timer {
+	class func schedule(_ delay: TimeInterval, handler: @escaping (Timer!) -> Void) -> Timer {
 		let fireDate = delay + CFAbsoluteTimeGetCurrent()
 		let timer = CFRunLoopTimerCreateWithHandler(kCFAllocatorDefault, fireDate, 0, 0, 0, handler)
-		CFRunLoopAddTimer(CFRunLoopGetCurrent(), timer, kCFRunLoopCommonModes)
-		return timer
+		CFRunLoopAddTimer(CFRunLoopGetCurrent(), timer, CFRunLoopMode.commonModes)
+		return timer!
 	}
 }
 
 public extension Float {
 	public static let epsilon: Float = 1e-8
-	func nearlyEqual(b: Float) -> Bool {
+	func nearlyEqual(_ b: Float) -> Bool {
 		return abs(self - b) < Float.epsilon
 	}
 }
 
-public class FileMgr: NSObject {
+open class FileMgr: NSObject {
     
-    private var rootPath: String!
-    private var basePath: NSString!
-    
-    class var sharedInstance: FileMgr {
-        struct Static {
-            static var onceToken: dispatch_once_t = 0
-            static var instance: FileMgr? = nil
-        }
-        dispatch_once(&Static.onceToken) {
-            Static.instance = FileMgr.init()
-        }
-        return Static.instance!
-    }
+    fileprivate var rootPath: String!
+    fileprivate var basePath: NSString!
 
-    private override init() {
+    static let sharedInstance: FileMgr = { FileMgr() }()
+
+    fileprivate override init() {
         super.init()
-        let paths = NSFileManager.defaultManager().URLsForDirectory(.DocumentDirectory, inDomains: .UserDomainMask)
-        self.rootPath = paths[0].path!
+        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+        self.rootPath = paths[0].path
         self.basePath = (self.rootPath as NSString)
     }
     
-    private func mksubdir( subpath: String) -> Bool {
+    fileprivate func mksubdir( _ subpath: String) -> Bool {
         
         let fullPath = self.full(subpath)
         
         if !self.exists(fullPath) {
             
             do {
-                try NSFileManager.defaultManager().createDirectoryAtPath(fullPath, withIntermediateDirectories: true, attributes: nil)
+                try FileManager.default.createDirectory(atPath: fullPath, withIntermediateDirectories: true, attributes: nil)
                 return true
             }
             catch {
@@ -65,10 +56,10 @@ public class FileMgr: NSObject {
         return true
     }
     
-    func useSubpath( subPath: String) {
+    func useSubpath( _ subPath: String) {
         
         mksubdir(subPath)
-        self.basePath = (rootPath as NSString).stringByAppendingPathComponent(subPath)
+        self.basePath = (rootPath as NSString).appendingPathComponent(subPath) as NSString
     }
     
     func root() -> NSString {
@@ -76,26 +67,26 @@ public class FileMgr: NSObject {
         return self.rootPath as NSString
     }
     
-    func full( name: String) -> String {
+    func full( _ name: String) -> String {
         
-        return self.basePath.stringByAppendingPathComponent(name)
+        return self.basePath.appendingPathComponent(name)
     }
     
-    func del( name: String) {
+    func del( _ name: String) {
         
-        let name = self.basePath.stringByAppendingPathComponent(name)
+        let name = self.basePath.appendingPathComponent(name)
         
         do {
-            try NSFileManager.defaultManager().removeItemAtPath(name)
+            try FileManager.default.removeItem(atPath: name)
         }
         catch {
             print("Error deleting \(name) \(error)")
         }
     }
     
-    func getData( name: String) -> NSData? {
+    func getData( _ name: String) -> NSData? {
         
-        let fullPathFile = self.basePath.stringByAppendingPathComponent(name)
+        let fullPathFile = self.basePath.appendingPathComponent(name)
         
         if self.exists(fullPathFile) {
             
@@ -111,16 +102,16 @@ public class FileMgr: NSObject {
         return nil
     }
     
-    func saveData( name: String, data: NSData) -> NSData? {
+    func saveData( _ name: String, data: NSData) -> NSData? {
         
-        let fullPathFile = self.basePath.stringByAppendingPathComponent(name)
+        let fullPathFile = self.basePath.appendingPathComponent(name)
         
         if self.exists(fullPathFile) {
             self.del(fullPathFile)
         }
         
         do {
-            try  data.writeToFile( fullPathFile, options:NSDataWritingOptions.AtomicWrite )
+            try  data.write( toFile: fullPathFile, options:NSData.WritingOptions.atomicWrite )
             return data
         }
         catch {
@@ -129,18 +120,18 @@ public class FileMgr: NSObject {
         }
     }
     
-    func saveMesh( name: String, data: STMesh) -> NSData? {
+    func saveMesh( _ name: String, data: STMesh) -> NSData? {
         
-        let options: [NSObject : AnyObject] = [ kSTMeshWriteOptionFileFormatKey : STMeshWriteOptionFileFormat.ObjFileZip.rawValue]
+        let options: [AnyHashable: Any] = [ kSTMeshWriteOptionFileFormatKey : STMeshWriteOptionFileFormat.objFileZip.rawValue]
         
-        let fullPathFile = self.basePath.stringByAppendingPathComponent(name)
+        let fullPathFile = self.basePath.appendingPathComponent(name)
         
         if self.exists(fullPathFile) {
             self.del(fullPathFile)
         }
         
         do {
-            try data.writeToFile(fullPathFile, options: options)
+            try data.write(toFile: fullPathFile, options: options)
             
             if let zipData = NSData(contentsOfFile: fullPathFile) {
                 return zipData
@@ -154,31 +145,31 @@ public class FileMgr: NSObject {
         }
     }
     
-    func filepath( subdir: String, name: String) -> String? {
+    func filepath( _ subdir: String, name: String) -> String? {
         
         let fullPathFile = self.full(subdir)
         
         if !self.exists(fullPathFile) {
             
             do {
-                try NSFileManager.defaultManager().createDirectoryAtPath(fullPathFile, withIntermediateDirectories: true, attributes: nil)
+                try FileManager.default.createDirectory(atPath: fullPathFile, withIntermediateDirectories: true, attributes: nil)
                 
-                return (fullPathFile as NSString).stringByAppendingPathComponent(name)
+                return (fullPathFile as NSString).appendingPathComponent(name)
             }
             catch {
                 return nil
             }
         }
         
-        return (fullPathFile as NSString).stringByAppendingPathComponent(name)
+        return (fullPathFile as NSString).appendingPathComponent(name)
         
     }
     
-    func exists( name: String) -> Bool {
+    func exists( _ name: String) -> Bool {
         
-        let fullPath = self.basePath.stringByAppendingPathComponent(name)
+        let fullPath = self.basePath.appendingPathComponent(name)
         
-        return NSFileManager.defaultManager().fileExistsAtPath(fullPath)
+        return FileManager.default.fileExists(atPath: fullPath)
     }
 }
 
